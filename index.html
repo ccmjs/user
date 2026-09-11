@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>ccmjs User Demo</title>
+  <script src="./libs/ccmjs/ccm.js"></script>
+  <script type="module">
+    await ccm.start("./ccm.user.mjs", {
+      url: "http://localhost:8080",
+    }, document.body);
+  </script>
+</head>
+<body></body>
+</html>
