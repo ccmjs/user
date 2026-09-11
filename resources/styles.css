@@ -1,18 +1,110 @@
-:host { display: block; color: #202b3b; font: 1rem/1.5 system-ui, sans-serif; }
-* { box-sizing: border-box; }
-.root { padding: 3rem 1rem; background: #f3f6fa; }
-.card { width: 100%; max-width: 25rem; margin-inline: auto; padding: 2rem; background: white; border: 1px solid #dbe2eb; border-radius: 1rem; box-shadow: 0 8px 28px #2030500a; }
-h1 { margin: 0 0 1.5rem; font-size: 1.6rem; overflow-wrap: anywhere; }
-.eyebrow { color: #586779; margin: 0 0 .25rem; }
-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
-label { display: block; margin: 0 0 1rem; font-weight: 550; }
-input { display: block; width: 100%; margin-top: .35rem; padding: .7rem; border: 1px solid #93a2b6; border-radius: .4rem; font: inherit; }
-button { width: 100%; padding: .75rem; border: 1px solid transparent; border-radius: .4rem; background: #2058b5; color: white; font: inherit; font-weight: 600; cursor: pointer; }
-button:hover { background: #16458f; }
-button.secondary { background: transparent; color: #2058b5; margin-top: .6rem; font-size: .9rem; }
-button.secondary:hover { background: #eef3fc; }
-button:disabled { cursor: wait; opacity: .6; }
-:focus-visible { outline: 3px solid #e29324; outline-offset: 3px; }
-.message { margin: 0 0 1rem; color: #9d2525; }
-.message:empty { display: none; }
-@media (max-width: 420px) { .card { padding: 1.25rem; } }
+* {
+  box-sizing: border-box;
+}
+
+.root {
+  display: block;
+  color: #202b3b;
+  font: 1rem/1.5 system-ui, sans-serif;
+  container: ccm-user / inline-size;
+  padding: 3rem 1rem;
+  background: #f3f6fa;
+}
+
+.card {
+  width: 100%;
+  max-width: 25rem;
+  margin-inline: auto;
+  padding: 2rem;
+  background: white;
+  border: 1px solid #dbe2eb;
+  border-radius: 1rem;
+  box-shadow: 0 8px 28px #2030500a;
+}
+
+h1 {
+  margin: 0 0 1.5rem;
+  font-size: 1.6rem;
+  overflow-wrap: anywhere;
+}
+
+.eyebrow {
+  color: #586779;
+  margin: 0 0 .25rem;
+}
+
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+label {
+  display: block;
+  margin: 0 0 1rem;
+  font-weight: 550;
+}
+
+input {
+  display: block;
+  width: 100%;
+  margin-top: .35rem;
+  padding: .7rem;
+  border: 1px solid #93a2b6;
+  border-radius: .4rem;
+  font: inherit;
+}
+
+button {
+  width: 100%;
+  padding: .75rem;
+  border: 1px solid transparent;
+  border-radius: .4rem;
+  background: #2058b5;
+  color: white;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #16458f;
+}
+
+button.secondary {
+  background: transparent;
+  color: #2058b5;
+  margin-top: .6rem;
+  font-size: .9rem;
+}
+
+button.secondary:hover {
+  background: #eef3fc;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+:focus-visible {
+  outline: 3px solid #e29324;
+  outline-offset: 3px;
+}
+
+.message {
+  margin: 0 0 1rem;
+  color: #9d2525;
+}
+
+
+.message:empty {
+  display: none;
+}
+
+@container ccm-user (max-width: 420px) {
+  .card {
+    padding: 1.25rem;
+  }
+}
