@@ -18,6 +18,19 @@ export const component = {
     // Optional callback: async ({ app, type, user }) => {}
     onchange: null,
 
+    // Inline SVG markup or image URLs (SVG, PNG, JPG)
+    icons: {
+      login: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+        focusable="false"><path d="M14 4h6v16h-6 M3 12h12 M9 6l6 6-6 6"/></svg>`,
+      user: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+        focusable="false"><path d="M20 21v-2a7 7 0 0 0-14 0v2 M17 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0"/></svg>`,
+      close: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+        focusable="false"><path d="M6 6l12 12 M6 18L18 6"/></svg>`,
+    },
+
     labels: {
       title: "Sign in",
       profile: "Your profile",

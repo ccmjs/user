@@ -124,18 +124,13 @@ function message(app) {
   `;
 }
 
-/** Inline icons inherit the component's text color. */
+/** Renders trusted inline SVG configuration or an image URL. */
 function icon(app, name) {
-  const paths = {
-    login: "M14 4h6v16h-6 M3 12h12 M9 6l6 6-6 6",
-    user: "M20 21v-2a7 7 0 0 0-14 0v2 M17 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
-    close: "M6 6l12 12 M6 18L18 6",
-  };
-  return app.ui.html`
-    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-         aria-hidden="true" focusable="false"><path d="${paths[name]}"></path></svg>
-  `;
+  const source = app.icons[name].trim();
+  const content = /^<svg(?:\s|>)/i.test(source)
+    ? source
+    : app.ui.html`<img src="${escape(source)}" alt="" />`;
+  return app.ui.html`<span class="icon" aria-hidden="true">${content}</span>`;
 }
 
 /** Escapes text and quoted attribute values for ccm-ui templates. */

@@ -57,10 +57,26 @@ the form open for another attempt. A successful registration satisfies a pending
 `login()` as well. Programmatic failures reject with the server error.
 
 Configuration is documented directly in `ccm.user.mjs`. Override `labels`,
-`views` or `css` to customize the interface. `registration: false` hides and
+`icons`, `views` or `css` to customize the interface. `registration: false` hides and
 disables registration in this component; it does not disable the server endpoint.
 `onchange({ app, type, user })` runs after login, registration, logout and account deletion;
 `type` is `login`, `register`, `logout` or `deleteAccount` (deletion emits logout first). Its user metadata contains no token.
+
+`icons.login`, `icons.user` and `icons.close` accept complete inline SVG markup
+(starting with `<svg`) or an image URL (SVG, PNG, JPG). Formats can be mixed:
+
+```js
+icons: {
+  login: "./resources/login.svg",
+  user: "./resources/avatar.png",
+  close: '<svg viewBox="0 0 24 24" stroke="currentColor"><path d="M6 6l12 12M6 18L18 6"/></svg>',
+}
+```
+
+The component sizes icons through `.icon` and marks them as decorative.
+Inline SVG can inherit the text color through `currentColor`; image files keep
+their own colors. The defaults are inline SVG and need no extra image requests.
+Inline markup is trusted developer configuration, not sanitized user input.
 
 The session exists only in this component instance's memory. Reloading the page
 logs out. No passwords or JWTs are written to browser storage. Token expiration is

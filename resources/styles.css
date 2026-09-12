@@ -43,6 +43,14 @@
     inline-size: 1.2rem;
     block-size: 1.2rem;
     flex: none;
+    display: inline-flex;
+
+    > svg, > img {
+      display: block;
+      inline-size: 100%;
+      block-size: 100%;
+      object-fit: contain;
+    }
   }
 
   .account-button {
@@ -50,7 +58,7 @@
     background: #2058b5;
     color: white;
 
-    span {
+    span:not(.icon) {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
