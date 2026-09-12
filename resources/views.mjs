@@ -25,9 +25,15 @@ export function dialog(app) {
   const { gui, labels } = app;
   const deleting = gui.mode === "delete";
   const registering = gui.mode === "register";
-  const title = app.isLoggedIn()
-    ? deleting ? labels.deleteTitle : labels.profile
-    : registering ? labels.registerTitle : labels.title;
+  let title;
+  let content;
+  if (app.isLoggedIn()) {
+    title = deleting ? labels.deleteTitle : labels.profile;
+    content = deleting ? deletion(app) : profile(app);
+  } else {
+    title = registering ? labels.registerTitle : labels.title;
+    content = authentication(app);
+  }
   return app.ui.html`
     <div class="dialog-container">
       <section class="card">
@@ -38,9 +44,7 @@ export function dialog(app) {
             ${icon(app, "close")}
           </button>
         </header>
-        ${app.isLoggedIn()
-          ? deleting ? deletion(app) : profile(app)
-          : authentication(app)}
+        ${content}
       </section>
     </div>
   `;

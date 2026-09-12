@@ -1,8 +1,13 @@
+/**
+ * Authentication with ccm-server: configuration, instance state, API and UI events.
+ * Markup lives in resources/views.mjs; presentation lives in resources/styles.css.
+ * The token is private; state contains metadata and gui contains transient UI state.
+ */
 export const component = {
   name: "user",
   ccm: "https://ccmjs.github.io/framework/ccm.js",
   config: {
-    // Server providing the register and login JSON API
+    // Server providing the registration, login and account deletion JSON API
     url: "http://localhost:8080",
 
     // UI utilities (templating and declarative event binding)
@@ -82,17 +87,18 @@ export const component = {
 
     // Transient GUI state, separate from the domain data
     this.gui = {
-      mode: "login",
+      mode: "login", // login, register, profile or delete
       busy: false,
       message: "",
-      username: "",
+      username: "", // Form draft; state.user is the authenticated username
       cancellable: false,
       dialog: false,
     };
 
     let token = null;
-    let pending;
-    let generation = 0;
+    let pendingLogin; // Shared promise for callers waiting on the login form
+    // Incrementing invalidates older responses; it does not abort the HTTP request.
+    let requestVersion = 0;
 
     /** Renders the current authentication state without resetting the session. */
     this.start = async () => render();
@@ -107,7 +113,7 @@ export const component = {
      * Logs in with credentials, or waits for an interactive login.
      *
      * @param {{user: string, password: string}} [credentials]
-     * @returns {Promise<object>} User metadata
+     * @returns {Promise<{key: string, user: string, realm: string}>} User metadata
      */
     this.login = (credentials) => {
       if (token)
@@ -116,14 +122,14 @@ export const component = {
           user: this.state.user,
           realm: this.state.realm,
         });
-      return credentials ? authenticate("login", credentials) : prompt("login");
+      return credentials ? authenticate("login", credentials) : promptLogin("login");
     };
 
     /**
      * Registers and logs in a local user, or opens the registration form.
      *
      * @param {{user: string, password: string}} [credentials]
-     * @returns {Promise<object>} User metadata
+     * @returns {Promise<{key: string, user: string, realm: string}>} User metadata
      */
     this.register = (credentials) => {
       if (!this.registration)
@@ -136,12 +142,12 @@ export const component = {
         });
       return credentials
         ? authenticate("register", credentials)
-        : prompt("register");
+        : promptLogin("register");
     };
 
     /** Discards the session and cancels a pending interactive login. */
     this.logout = async () => {
-      generation++;
+      requestVersion++;
       this.gui.busy = false;
       const changed = token !== null;
       token = null;
@@ -152,29 +158,31 @@ export const component = {
       this.gui.message = "";
       this.gui.mode = "login";
       this.gui.dialog = false;
-      cancel();
+      cancelPendingLogin();
       render();
       if (changed) await this.emit("logout");
     };
 
-    const prompt = (nextMode) => {
-      if (pending) return pending.promise;
+    /** Opens one shared login flow; failed submissions leave its promise pending. */
+    const promptLogin = (nextMode) => {
+      if (pendingLogin) return pendingLogin.promise;
       this.gui.mode = nextMode;
       this.gui.dialog = true;
       this.gui.message = "";
       const promise = new Promise((resolve, reject) => {
-        pending = { resolve, reject };
+        pendingLogin = { resolve, reject };
       });
-      pending.promise = promise;
+      pendingLogin.promise = promise;
       this.gui.cancellable = true;
       render();
       return promise;
     };
 
-    const cancel = () => {
-      if (!pending) return;
-      const { reject } = pending;
-      pending = null;
+    /** Rejects waiting callers without changing an existing authenticated session. */
+    const cancelPendingLogin = () => {
+      if (!pendingLogin) return;
+      const { reject } = pendingLogin;
+      pendingLogin = null;
       this.gui.cancellable = false;
       reject(new DOMException(this.labels.loginCancelled, "AbortError"));
     };
@@ -187,9 +195,10 @@ export const component = {
     this.emit = async (type) => {
       const extensions = [].concat(this.extensions || []);
       for (const extension of extensions)
-        extension && (await extension({ app: this, type }));
+        if (extension) await extension({ app: this, type });
     };
 
+    /** Shared request flow for credential-based calls and form submissions. */
     const authenticate = async (operation, credentials) => {
       if (this.gui.busy)
         throw new Error(this.labels.authenticationBusy);
@@ -199,7 +208,7 @@ export const component = {
         typeof credentials.password !== "string"
       )
         throw new TypeError(this.labels.invalidCredentials);
-      const current = ++generation;
+      const version = ++requestVersion;
       this.gui.busy = true;
       this.gui.username = credentials.user;
       this.gui.message = "";
@@ -226,7 +235,7 @@ export const component = {
           headers: { "Content-Type": "application/json" },
           params,
         });
-        if (current !== generation)
+        if (version !== requestVersion)
           throw new DOMException(this.labels.loginCancelled, "AbortError");
         if (
           !result ||
@@ -241,19 +250,16 @@ export const component = {
         this.state.user = credentials.user;
         this.state.realm = "ccm";
       } catch (error) {
-        if (current === generation) {
-          this.gui.message =
-            error.status === 401
-              ? this.labels.invalid
-              : error.status === 409
-                ? this.labels.duplicate
-                : operation === "register"
-                  ? this.labels.registrationFailed
-                  : this.labels.failed;
+        if (version === requestVersion) {
+          if (error.status === 401) this.gui.message = this.labels.invalid;
+          else if (error.status === 409) this.gui.message = this.labels.duplicate;
+          else if (operation === "register")
+            this.gui.message = this.labels.registrationFailed;
+          else this.gui.message = this.labels.failed;
         }
         throw error;
       } finally {
-        if (current === generation) {
+        if (version === requestVersion) {
           this.gui.busy = false;
           render();
         }
@@ -263,10 +269,11 @@ export const component = {
         user: this.state.user,
         realm: this.state.realm,
       };
-      const waiting = pending;
-      pending = null;
+      const waiting = pendingLogin;
+      pendingLogin = null;
       this.gui.cancellable = false;
       this.gui.dialog = false;
+      // Interactive callers receive the session before extensions run.
       waiting?.resolve(value);
       render();
       await this.emit(operation);
@@ -277,7 +284,7 @@ export const component = {
     this.deleteAccount = async () => {
       if (!token) throw new Error(this.labels.deletionRequiresLogin);
       if (this.gui.busy) throw new Error(this.labels.requestBusy);
-      const current = ++generation;
+      const version = ++requestVersion;
       this.gui.busy = true;
       this.gui.message = "";
       render();
@@ -290,16 +297,16 @@ export const component = {
         });
         if (result !== true)
           throw new Error(this.labels.invalidDeletionResponse);
-        if (current !== generation) return;
+        if (version !== requestVersion) return;
       } catch (error) {
-        if (current === generation)
+        if (version === requestVersion)
           this.gui.message =
             error.status === 401
               ? this.labels.sessionExpired
               : this.labels.deletionFailed;
         throw error;
       } finally {
-        if (current === generation) {
+        if (version === requestVersion) {
           this.gui.busy = false;
           render();
         }
@@ -373,16 +380,16 @@ export const component = {
         event?.preventDefault();
         if (this.gui.busy && this.gui.mode === "delete") return;
         this.gui.dialog = false;
-        generation++;
+        requestVersion++;
         this.gui.busy = false;
         this.gui.message = "";
-        cancel();
+        cancelPendingLogin();
         render();
       },
     };
 
     const render = () => {
-      // Keep the native dialog mounted while replacing its content
+      // Replacing an open dialog would lose its native modal state and focus handling.
       if (!this.element?.querySelector("[data-user-shell]"))
         this.ui.render(this.views.main(this), this.element, this);
       const dialog = this.element?.querySelector("dialog");

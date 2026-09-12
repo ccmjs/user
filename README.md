@@ -5,14 +5,13 @@ It provides registration, login and logout without a build step.
 
 ## Local demo
 
-Serve the parent directory containing the `user` and `framework` checkouts,
-for example with `python3 -m http.server 8000 --bind 127.0.0.1`.
-Start ccm-server on port 8080 and open `http://localhost:8000/user/`.
+Serve this directory, for example with
+`python3 -m http.server 8000 --bind 127.0.0.1`.
+Start ccm-server on port 8080 and open `http://localhost:8000/`.
 
-The demo uses `../framework/ccm.js` so it includes the current `getToken()`
-integration. Adjust the script URL for deployment. The component itself
-declares the public framework URL and resolves its views and CSS relative
-to its own module URL. Change `url` in the demo to use another server.
+The demo loads the bundled `libs/ccmjs/ccm.js`. The component declares the public
+framework URL and resolves its views and CSS relative to its own module URL.
+Change `url` in the demo to use another server.
 
 ## Usage
 
@@ -51,10 +50,13 @@ store registers a new subscription with the current token.
 | `logout()` | Discards the session and cancels pending interactive authentication |
 | `isLoggedIn()` | Whether the instance currently holds a token |
 | `getToken()` | JWT or `null` |
+| `emit(type)` | Runs configured extensions sequentially with `{ app, type }` |
 
 Interactive cancellation rejects with `AbortError`. Invalid credentials leave
 the form open for another attempt. A successful registration satisfies a pending
-`login()` as well. Programmatic failures reject with the server error.
+`login()` as well. Credential-based calls reject on validation, server or extension
+errors. Interactive login resolves once authentication succeeds, before extensions
+run; a later extension error does not reject that already-resolved promise.
 
 Configuration is documented directly in `ccm.user.mjs`. Override `labels`,
 `icons`, `views` or `css` to customize the interface. `registration: false` hides and
@@ -63,7 +65,7 @@ disables registration in this component; it does not disable the server endpoint
 `app.emit(type)` awaits them sequentially in configuration order. Events are
 `login`, `register`, `logout` and `deleteAccount`, emitted after the successful
 action (deletion emits `logout` first). User metadata is available in `app.state`.
-An extension error stops dispatch and rejects the calling operation; completed
+An extension error stops dispatch and rejects the operation awaiting `emit`; completed
 state changes are not rolled back. If a logout extension fails during deletion,
 the subsequent `deleteAccount` event is not emitted.
 
@@ -113,11 +115,11 @@ from both objects. Serializing `state` excludes GUI state; restoring GUI state
 through routing or browser storage is a separate, explicit concern.
 After authentication, `state.key`, `state.user` and `state.realm` contain the
 user metadata; after logout all three are `null`. Only the token, the pending authentication promise
-and the generation counter remain private. Read the token through `getToken()`
+and the request version counter remain private. Read the token through `getToken()`
 and user metadata directly through `state.key`, `state.user` and `state.realm`.
 
 Responsive component styles use container queries instead of viewport-based media
-queries. The modal content defines the `ccm-user-dialog` inline-size container.
+queries. The modal content defines the `dialog` inline-size container.
 The header button fits its embedding area; the modal content adapts to its own width.
 
 ## Header button and modal dialogs
@@ -141,3 +143,19 @@ creating a new account with a new key. The old account can
 no longer log in, its tokens are rejected on subsequent requests, and its observe
 subscriptions on this server are removed. Other application data is unchanged.
 The updated ccm-server must be restarted to enable the delete-account endpoint.
+
+## Reading the implementation
+
+Start with `ccm.user.mjs`: configuration defines dependencies and defaults, followed
+by `state` (user metadata), `gui` (presentation) and the instance methods. Public
+methods use `this`; private helpers stay inside the instance closure. `events`
+connects user interactions to these methods, and `render` updates the views.
+
+`login(credentials)` and `register(credentials)` use the same `authenticate` flow.
+Without credentials, `promptLogin` opens the form and shares one promise between
+waiting callers. Submitting the form calls `authenticate`; success resolves the
+waiting promise, while a failed submission keeps the form available for retry.
+
+Logout and dialog cancellation advance `requestVersion`. Responses from older
+requests cannot restore a discarded session or overwrite a newer form state.
+This invalidates results locally; it does not cancel the request on the server.
