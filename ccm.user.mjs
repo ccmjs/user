@@ -20,6 +20,18 @@ export const component = {
 
     labels: {
       title: "Sign in",
+      profile: "Your profile",
+      userId: "User ID",
+      provider: "Sign-in provider",
+      close: "Close dialog",
+      deleteAccount: "Delete account",
+      deleteTitle: "Delete your account?",
+      deleteDescription:
+        "Your account will be marked as deleted. You will be signed out and can no longer sign in. Your account data is retained.",
+      confirmDelete: "Delete my account",
+      keepAccount: "Keep my account",
+      deletionFailed: "Account deletion failed. Please try again.",
+      sessionExpired: "Your session is no longer valid. Please sign in again.",
       registerTitle: "Create an account",
       user: "Username",
       password: "Password",
@@ -50,6 +62,7 @@ export const component = {
       message: "",
       username: "",
       cancellable: false,
+      dialog: false,
     };
 
     let token = null;
@@ -113,6 +126,7 @@ export const component = {
       this.state.username = "";
       this.state.message = "";
       this.state.mode = "login";
+      this.state.dialog = false;
       cancel();
       render();
       if (changed) await notify("logout");
@@ -121,6 +135,7 @@ export const component = {
     const prompt = (nextMode) => {
       if (pending) return pending.promise;
       this.state.mode = nextMode;
+      this.state.dialog = true;
       this.state.message = "";
       const promise = new Promise((resolve, reject) => {
         pending = { resolve, reject };
@@ -229,14 +244,78 @@ export const component = {
       const waiting = pending;
       pending = null;
       this.state.cancellable = false;
+      this.state.dialog = false;
       waiting?.resolve(value);
       render();
       await notify(operation);
       return value;
     };
 
+    /** Marks the current account as deleted and discards its local session. */
+    this.deleteAccount = async () => {
+      if (!token) throw new Error("Sign in before deleting your account.");
+      if (this.state.busy) throw new Error("A request is already in progress.");
+      const current = ++generation;
+      this.state.busy = true;
+      this.state.message = "";
+      render();
+      try {
+        const result = await this.ccm.load({
+          url: this.url,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          params: { deleteAccount: true, token },
+        });
+        if (result !== true)
+          throw new Error("Invalid account deletion response.");
+        if (current !== generation) return;
+      } catch (error) {
+        if (current === generation)
+          this.state.message =
+            error.status === 401
+              ? this.labels.sessionExpired
+              : this.labels.deletionFailed;
+        throw error;
+      } finally {
+        if (current === generation) {
+          this.state.busy = false;
+          render();
+        }
+      }
+      await this.logout();
+      await notify("deleteAccount");
+    };
+
     /** DOM handlers bound by ccm-ui through data-on-* attributes. */
     this.events = {
+      open: () => {
+        if (token) {
+          this.state.mode = "profile";
+          this.state.dialog = true;
+          this.state.message = "";
+          render();
+        } else {
+          this.login().catch((error) => {
+            if (error.name !== "AbortError") console.error(error);
+          });
+        }
+      },
+      requestDelete: () => {
+        if (!token || this.state.busy) return;
+        this.state.mode = "delete";
+        this.state.message = "";
+        render();
+      },
+      keepAccount: () => {
+        if (this.state.busy) return;
+        this.state.mode = "profile";
+        this.state.message = "";
+        render();
+      },
+      deleteAccount: () =>
+        this.deleteAccount().catch(() => {
+          // The failure is displayed in the dialog
+        }),
       submit: async (event) => {
         event.preventDefault();
         if (this.state.busy) return;
@@ -268,7 +347,10 @@ export const component = {
         render();
       },
       logout: () => this.logout().catch(console.error),
-      cancel: () => {
+      cancel: (event) => {
+        event?.preventDefault();
+        if (this.state.busy && this.state.mode === "delete") return;
+        this.state.dialog = false;
         generation++;
         this.state.busy = false;
         this.state.message = "";
@@ -278,7 +360,31 @@ export const component = {
     };
 
     const render = () => {
-      this.ui.render(this.views.main(this), this.element, this);
+      // Keep the native dialog mounted while replacing its content
+      if (!this.element?.querySelector("[data-user-shell]"))
+        this.ui.render(this.views.main(this), this.element, this);
+      const dialog = this.element?.querySelector("dialog");
+      if (!dialog) return;
+      this.ui.render(
+        this.views.trigger(this),
+        this.element.querySelector("[data-user-trigger]"),
+        this,
+      );
+      this.ui.render(this.views.dialog(this), dialog, this);
+      if (this.state.dialog) {
+        if (!dialog.open) dialog.showModal();
+        if (!this.state.busy)
+          dialog
+            .querySelector(
+              this.state.message
+                ? '[name="password"], [autofocus]'
+                : "[autofocus]",
+            )
+            ?.focus();
+      } else if (dialog.open) {
+        dialog.close();
+        this.element.querySelector("[data-user-trigger] button")?.focus();
+      }
     };
   },
 };

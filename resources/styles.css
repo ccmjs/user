@@ -1,110 +1,266 @@
-* {
-  box-sizing: border-box;
-}
-
 .root {
-  display: block;
   color: #202b3b;
   font: 1rem/1.5 system-ui, sans-serif;
-  container: ccm-user / inline-size;
-  padding: 3rem 1rem;
-  background: #f3f6fa;
-}
 
-.card {
-  width: 100%;
-  max-width: 25rem;
-  margin-inline: auto;
-  padding: 2rem;
-  background: white;
-  border: 1px solid #dbe2eb;
-  border-radius: 1rem;
-  box-shadow: 0 8px 28px #2030500a;
-}
+  &, * {
+    box-sizing: border-box;
+  }
 
-h1 {
-  margin: 0 0 1.5rem;
-  font-size: 1.6rem;
-  overflow-wrap: anywhere;
-}
+  [data-user-shell] {
+    display: flex;
+    justify-content: flex-end;
+    min-inline-size: 0;
+  }
 
-.eyebrow {
-  color: #586779;
-  margin: 0 0 .25rem;
-}
+  [data-user-trigger] {
+    min-inline-size: 0;
+  }
 
-fieldset {
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    padding: .65rem 1rem;
+    border: 1px solid transparent;
+    border-radius: .55rem;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
 
-label {
-  display: block;
-  margin: 0 0 1rem;
-  font-weight: 550;
-}
+    &:disabled {
+      opacity: .6;
+      cursor: wait;
+    }
+  }
 
-input {
-  display: block;
-  width: 100%;
-  margin-top: .35rem;
-  padding: .7rem;
-  border: 1px solid #93a2b6;
-  border-radius: .4rem;
-  font: inherit;
-}
+  :focus-visible {
+    outline: 3px solid #d98a1c;
+    outline-offset: 3px;
+  }
 
-button {
-  width: 100%;
-  padding: .75rem;
-  border: 1px solid transparent;
-  border-radius: .4rem;
-  background: #2058b5;
-  color: white;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
+  .icon {
+    inline-size: 1.2rem;
+    block-size: 1.2rem;
+    flex: none;
+  }
 
-button:hover {
-  background: #16458f;
-}
+  .account-button {
+    max-inline-size: 100%;
+    background: #2058b5;
+    color: white;
 
-button.secondary {
-  background: transparent;
-  color: #2058b5;
-  margin-top: .6rem;
-  font-size: .9rem;
-}
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-button.secondary:hover {
-  background: #eef3fc;
-}
+    &.signed-in {
+      background: transparent;
+      color: inherit;
+    }
 
-button:disabled {
-  cursor: wait;
-  opacity: .6;
-}
+    &:hover {
+      background: #16458f;
+    }
 
-:focus-visible {
-  outline: 3px solid #e29324;
-  outline-offset: 3px;
-}
+    &.signed-in:hover {
+      background: #eef3fc;
+    }
+  }
 
-.message {
-  margin: 0 0 1rem;
-  color: #9d2525;
-}
+  /* The native modal uses the top layer; its contents adapt to its own width */
+  dialog {
+    inline-size: 27rem;
+    max-inline-size: calc(100% - 2rem);
+    padding: 0;
+    border: 1px solid #dbe2eb;
+    border-radius: 1rem;
+    color: inherit;
+    background: white;
+    font: inherit;
+    box-shadow: 0 20px 70px #10204030;
 
+    &::backdrop {
+      background: #14223880;
+    }
+  }
 
-.message:empty {
-  display: none;
-}
+  .dialog-container {
+    container: dialog / inline-size;
+  }
 
-@container ccm-user (max-width: 420px) {
   .card {
-    padding: 1.25rem;
+    padding: 1.75rem;
+  }
+
+  .dialog-header {
+    display: flex;
+    align-items: start;
+    gap: 1rem;
+    margin-block-end: 1.5rem;
+  }
+
+  h1 {
+    flex: 1;
+    margin: 0;
+    font-size: 1.4rem;
+    overflow-wrap: anywhere;
+  }
+
+  .close-button {
+    padding: .4rem;
+    margin: -.25rem;
+    color: #526174;
+    background: transparent;
+
+    &:hover {
+      background: #eef3fc;
+    }
+  }
+
+  fieldset {
+    min-inline-size: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  label {
+    display: block;
+    margin-block-end: 1rem;
+    font-weight: 550;
+  }
+
+  input {
+    display: block;
+    inline-size: 100%;
+    margin-block-start: .35rem;
+    padding: .7rem;
+    border: 1px solid #93a2b6;
+    border-radius: .4rem;
+    color: inherit;
+    background: white;
+    font: inherit;
+  }
+
+  .primary {
+    inline-size: 100%;
+    background: #2058b5;
+    color: white;
+
+    &:hover {
+      background: #16458f;
+    }
+  }
+
+  .text-button {
+    inline-size: 100%;
+    margin-block-start: .6rem;
+    background: transparent;
+    color: #2058b5;
+    font-size: .9rem;
+
+    &:hover {
+      background: #eef3fc;
+    }
+  }
+
+  .profile-heading {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+
+    .icon {
+      inline-size: 2.5rem;
+      block-size: 2.5rem;
+      padding: .35rem;
+      border-radius: 50%;
+      background: #eef3fc;
+    }
+  }
+
+  .profile-data {
+    margin-block: 1.5rem;
+  }
+
+  dt {
+    color: #586779;
+    font-size: .85rem;
+  }
+
+  dd {
+    margin: .15rem 0 .8rem;
+    overflow-wrap: anywhere;
+  }
+
+  .user-id {
+    font-size: .85rem;
+  }
+
+  .account-actions {
+    margin-block-start: 1.25rem;
+    border-block-start: 1px solid #e5eaf1;
+    padding-block-start: .65rem;
+    text-align: center;
+  }
+
+  .delete-link {
+    color: #687384;
+    font-size: .85rem;
+    font-weight: 400;
+    background: transparent;
+
+    &:hover {
+      color: #9d2525;
+      text-decoration: underline;
+    }
+  }
+
+  .description {
+    margin: 0 0 1.5rem;
+  }
+
+  .actions {
+    display: flex;
+    gap: .6rem;
+    flex-wrap: wrap;
+
+    button {
+      flex: 1 1 9rem;
+    }
+  }
+
+  .secondary {
+    border-color: #c5cfdd;
+    background: white;
+    color: #344258;
+  }
+
+  .danger {
+    color: white;
+    background: #a12a2a;
+
+    &:hover {
+      background: #802020;
+    }
+  }
+
+  .message {
+    margin: 0 0 1rem;
+    color: #9d2525;
+
+    &:empty {
+      display: none;
+    }
+  }
+
+  @container dialog (max-width: 360px) {
+    .card {
+      padding: 1.1rem;
+    }
   }
 }

@@ -100,3 +100,50 @@ test("invalid responses and disabled registration cannot create a session", asyn
   await assert.rejects(app.login({ user: "a", password: "pw" }), /Invalid authentication response/);
   assert.equal(app.isLoggedIn(), false);
 });
+
+test("header actions open login and profile dialogs; cancellation keeps the session", async () => {
+  const { app } = create();
+  await app.start();
+  assert.equal(app.state.dialog, false);
+  const login = app.login();
+  const cancelled = assert.rejects(login, { name: "AbortError" });
+  assert.equal(app.state.dialog, true);
+  app.events.cancel();
+  await cancelled;
+  assert.equal(app.state.dialog, false);
+  await app.login({ user: "a", password: "pw" });
+  assert.equal(app.state.dialog, false);
+  app.events.open();
+  assert.equal(app.state.dialog, true);
+  assert.equal(app.state.mode, "profile");
+  app.events.requestDelete();
+  assert.equal(app.state.mode, "delete");
+  app.events.keepAccount();
+  assert.equal(app.state.mode, "profile");
+  app.events.cancel();
+  assert.equal(app.getToken(), "jwt");
+  assert.equal(app.state.dialog, false);
+});
+
+test("account deletion requires success before clearing the local session", async () => {
+  const requests = [];
+  let fail = true;
+  const { app } = create(async request => {
+    requests.push(request.params);
+    if (!request.params.deleteAccount) return { key: "account", token: "jwt" };
+    if (fail) throw Object.assign(new Error("Unavailable"), { status: 500 });
+    return true;
+  });
+  await app.login({ user: "a", password: "pw" });
+  app.events.open();
+  app.events.requestDelete();
+  await assert.rejects(app.deleteAccount(), { status: 500 });
+  assert.equal(app.getToken(), "jwt");
+  assert.equal(app.state.message, app.labels.deletionFailed);
+  fail = false;
+  await app.deleteAccount();
+  assert.deepEqual(requests.at(-1), { deleteAccount: true, token: "jwt" });
+  assert.equal(app.getToken(), null);
+  assert.equal(app.state.user, null);
+  assert.equal(app.state.dialog, false);
+});

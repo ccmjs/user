@@ -47,6 +47,7 @@ store registers a new subscription with the current token.
 | `login({ user, password })` | Logs in with supplied credentials |
 | `register()` | Opens the registration form and waits for success |
 | `register({ user, password })` | Creates an account and logs in |
+| `deleteAccount()` | Marks the authenticated account as deleted and signs out after success |
 | `logout()` | Discards the session and cancels pending interactive authentication |
 | `isLoggedIn()` | Whether the instance currently holds a token |
 | `getToken()` | JWT or `null` |
@@ -58,8 +59,8 @@ the form open for another attempt. A successful registration satisfies a pending
 Configuration is documented directly in `ccm.user.mjs`. Override `labels`,
 `views` or `css` to customize the interface. `registration: false` hides and
 disables registration in this component; it does not disable the server endpoint.
-`onchange({ app, type, user })` runs after login, registration and logout;
-`type` is `login`, `register` or `logout`. Its user metadata contains no token.
+`onchange({ app, type, user })` runs after login, registration, logout and account deletion;
+`type` is `login`, `register`, `logout` or `deleteAccount` (deletion emits logout first). Its user metadata contains no token.
 
 The session exists only in this component instance's memory. Reloading the page
 logs out. No passwords or JWTs are written to browser storage. Token expiration is
@@ -85,12 +86,34 @@ connect the templates to `instance.events`, following the Quiz component.
 Dynamic text and quoted attribute values are escaped before interpolation.
 
 The view reads its state directly from `app.state`:
-`key`, `user`, `realm`, `mode`, `busy`, `message`, `username` and `cancellable`.
+`key`, `user`, `realm`, `mode`, `busy`, `message`, `username`, `cancellable` and `dialog`.
 After authentication, `state.key`, `state.user` and `state.realm` contain the
 user metadata; after logout all three are `null`. Only the token, the pending authentication promise
 and the generation counter remain private. Read the token through `getToken()`
 and user metadata directly through `state.key`, `state.user` and `state.realm`.
 
 Responsive component styles use container queries instead of viewport-based media
-queries. The component root defines the `ccm-user` inline-size container, so the
-layout responds to its available embedding width independently of the page width.
+queries. The modal content defines the `ccm-user-dialog` inline-size container.
+The header button fits its embedding area; the modal content adapts to its own width.
+
+## Header button and modal dialogs
+
+Initially only a compact sign-in button with an icon is shown. Clicking it opens
+the native modal dialog. After authentication it closes and the header displays
+a user icon with the username. Clicking this opens the profile with the username,
+user ID, provider, sign-out action and a discreet delete-account action.
+Custom user images and profile editing are not implemented yet.
+
+Escape or the close button dismisses the modal. Dismissing an interactive login
+rejects its promise with `AbortError`; dismissing the profile keeps the session.
+The native dialog traps focus while open and focus returns to the header button
+when it closes. Styles are nested under `.root` and rely on Shadow DOM for
+isolation. When disabling Shadow DOM, developers must adapt the CSS prefixes
+to avoid conflicts with other components.
+
+Account deletion first shows a confirmation. The server sets `deleted: true`;
+the account data is retained. Its username can be registered again immediately,
+creating a new account with a new key. The old account can
+no longer log in, its tokens are rejected on subsequent requests, and its observe
+subscriptions on this server are removed. Other application data is unchanged.
+The updated ccm-server must be restarted to enable the delete-account endpoint.
