@@ -33,9 +33,12 @@ const store = await ccm.store({
 });
 ```
 
-Authenticate before creating an observed store: existing subscriptions are not
-automatically renewed when the user logs in or out. Closing and recreating the
-store registers a new subscription with the current token.
+Authenticate before creating an observed store. On status 401 or 403, the framework
+uses this user component for one re-login attempt and retries the failed HTTP request
+or subscription once. Concurrent failures share the login dialog. The application
+is not restarted. HTTP failures reject; observe failures reach `store.onerror`.
+Logging out manually does not close existing subscriptions: close them explicitly
+when ending observation or changing users.
 
 ## Public methods
 
