@@ -73,11 +73,15 @@ export const component = {
     },
   },
   Instance: function () {
-    // Public state used by the views; credentials remain private
+    // Public domain data; credentials remain private
     this.state = {
       key: null,
       user: null,
       realm: null,
+    };
+
+    // Transient GUI state, separate from the domain data
+    this.gui = {
       mode: "login",
       busy: false,
       message: "",
@@ -138,16 +142,16 @@ export const component = {
     /** Discards the session and cancels a pending interactive login. */
     this.logout = async () => {
       generation++;
-      this.state.busy = false;
+      this.gui.busy = false;
       const changed = token !== null;
       token = null;
       this.state.key = null;
       this.state.user = null;
       this.state.realm = null;
-      this.state.username = "";
-      this.state.message = "";
-      this.state.mode = "login";
-      this.state.dialog = false;
+      this.gui.username = "";
+      this.gui.message = "";
+      this.gui.mode = "login";
+      this.gui.dialog = false;
       cancel();
       render();
       if (changed) await notify("logout");
@@ -155,14 +159,14 @@ export const component = {
 
     const prompt = (nextMode) => {
       if (pending) return pending.promise;
-      this.state.mode = nextMode;
-      this.state.dialog = true;
-      this.state.message = "";
+      this.gui.mode = nextMode;
+      this.gui.dialog = true;
+      this.gui.message = "";
       const promise = new Promise((resolve, reject) => {
         pending = { resolve, reject };
       });
       pending.promise = promise;
-      this.state.cancellable = true;
+      this.gui.cancellable = true;
       render();
       return promise;
     };
@@ -171,7 +175,7 @@ export const component = {
       if (!pending) return;
       const { reject } = pending;
       pending = null;
-      this.state.cancellable = false;
+      this.gui.cancellable = false;
       reject(new DOMException(this.labels.loginCancelled, "AbortError"));
     };
 
@@ -190,7 +194,7 @@ export const component = {
     };
 
     const authenticate = async (operation, credentials) => {
-      if (this.state.busy)
+      if (this.gui.busy)
         throw new Error(this.labels.authenticationBusy);
       if (
         !credentials ||
@@ -199,9 +203,9 @@ export const component = {
       )
         throw new TypeError(this.labels.invalidCredentials);
       const current = ++generation;
-      this.state.busy = true;
-      this.state.username = credentials.user;
-      this.state.message = "";
+      this.gui.busy = true;
+      this.gui.username = credentials.user;
+      this.gui.message = "";
       render();
       try {
         const params =
@@ -241,7 +245,7 @@ export const component = {
         this.state.realm = "ccm";
       } catch (error) {
         if (current === generation) {
-          this.state.message =
+          this.gui.message =
             error.status === 401
               ? this.labels.invalid
               : error.status === 409
@@ -253,7 +257,7 @@ export const component = {
         throw error;
       } finally {
         if (current === generation) {
-          this.state.busy = false;
+          this.gui.busy = false;
           render();
         }
       }
@@ -264,8 +268,8 @@ export const component = {
       };
       const waiting = pending;
       pending = null;
-      this.state.cancellable = false;
-      this.state.dialog = false;
+      this.gui.cancellable = false;
+      this.gui.dialog = false;
       waiting?.resolve(value);
       render();
       await notify(operation);
@@ -275,10 +279,10 @@ export const component = {
     /** Marks the current account as deleted and discards its local session. */
     this.deleteAccount = async () => {
       if (!token) throw new Error(this.labels.deletionRequiresLogin);
-      if (this.state.busy) throw new Error(this.labels.requestBusy);
+      if (this.gui.busy) throw new Error(this.labels.requestBusy);
       const current = ++generation;
-      this.state.busy = true;
-      this.state.message = "";
+      this.gui.busy = true;
+      this.gui.message = "";
       render();
       try {
         const result = await this.ccm.load({
@@ -292,14 +296,14 @@ export const component = {
         if (current !== generation) return;
       } catch (error) {
         if (current === generation)
-          this.state.message =
+          this.gui.message =
             error.status === 401
               ? this.labels.sessionExpired
               : this.labels.deletionFailed;
         throw error;
       } finally {
         if (current === generation) {
-          this.state.busy = false;
+          this.gui.busy = false;
           render();
         }
       }
@@ -311,9 +315,9 @@ export const component = {
     this.events = {
       open: () => {
         if (token) {
-          this.state.mode = "profile";
-          this.state.dialog = true;
-          this.state.message = "";
+          this.gui.mode = "profile";
+          this.gui.dialog = true;
+          this.gui.message = "";
           render();
         } else {
           this.login().catch((error) => {
@@ -322,15 +326,15 @@ export const component = {
         }
       },
       requestDelete: () => {
-        if (!token || this.state.busy) return;
-        this.state.mode = "delete";
-        this.state.message = "";
+        if (!token || this.gui.busy) return;
+        this.gui.mode = "delete";
+        this.gui.message = "";
         render();
       },
       keepAccount: () => {
-        if (this.state.busy) return;
-        this.state.mode = "profile";
-        this.state.message = "";
+        if (this.gui.busy) return;
+        this.gui.mode = "profile";
+        this.gui.message = "";
         render();
       },
       deleteAccount: () =>
@@ -339,42 +343,42 @@ export const component = {
         }),
       submit: async (event) => {
         event.preventDefault();
-        if (this.state.busy) return;
+        if (this.gui.busy) return;
         const fields = event.currentTarget.elements;
         const credentials = {
           user: fields.namedItem("user").value,
           password: fields.namedItem("password").value,
         };
         if (
-          this.state.mode === "register" &&
+          this.gui.mode === "register" &&
           credentials.password !== fields.namedItem("confirmation").value
         ) {
-          this.state.username = credentials.user;
-          this.state.message = this.labels.mismatch;
+          this.gui.username = credentials.user;
+          this.gui.message = this.labels.mismatch;
           render();
           return;
         }
         try {
-          await authenticate(this.state.mode, credentials);
+          await authenticate(this.gui.mode, credentials);
         } catch (error) {
           // Authentication failures are displayed in the form
           if (token) console.error(error);
         }
       },
       switchMode: () => {
-        if (this.state.busy || !this.registration) return;
-        this.state.mode = this.state.mode === "login" ? "register" : "login";
-        this.state.message = "";
+        if (this.gui.busy || !this.registration) return;
+        this.gui.mode = this.gui.mode === "login" ? "register" : "login";
+        this.gui.message = "";
         render();
       },
       logout: () => this.logout().catch(console.error),
       cancel: (event) => {
         event?.preventDefault();
-        if (this.state.busy && this.state.mode === "delete") return;
-        this.state.dialog = false;
+        if (this.gui.busy && this.gui.mode === "delete") return;
+        this.gui.dialog = false;
         generation++;
-        this.state.busy = false;
-        this.state.message = "";
+        this.gui.busy = false;
+        this.gui.message = "";
         cancel();
         render();
       },
@@ -392,12 +396,12 @@ export const component = {
         this,
       );
       this.ui.render(this.views.dialog(this), dialog, this);
-      if (this.state.dialog) {
+      if (this.gui.dialog) {
         if (!dialog.open) dialog.showModal();
-        if (!this.state.busy)
+        if (!this.gui.busy)
           dialog
             .querySelector(
-              this.state.message
+              this.gui.message
                 ? '[name="password"], [autofocus]'
                 : "[autofocus]",
             )

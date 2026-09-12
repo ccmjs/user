@@ -101,8 +101,11 @@ Views in `resources/views.mjs` use `app.ui.html` from the bundled
 connect the templates to `instance.events`, following the Quiz component.
 Dynamic text and quoted attribute values are escaped before interpolation.
 
-The view reads its state directly from `app.state`:
-`key`, `user`, `realm`, `mode`, `busy`, `message`, `username`, `cancellable` and `dialog`.
+Configuration defines component options. `app.state` contains only domain data:
+`key`, `user` and `realm`. The separate `app.gui` object contains transient GUI
+state: `mode`, `busy`, `message`, `username`, `cancellable` and `dialog`. Views read
+from both objects. Serializing `state` excludes GUI state; restoring GUI state
+through routing or browser storage is a separate, explicit concern.
 After authentication, `state.key`, `state.user` and `state.realm` contain the
 user metadata; after logout all three are `null`. Only the token, the pending authentication promise
 and the generation counter remain private. Read the token through `getToken()`

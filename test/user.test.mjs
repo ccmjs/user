@@ -6,7 +6,7 @@ function create(load = async () => ({ key: "account", token: "jwt" }), config = 
   let view;
   const app = Object.assign(new component.Instance(), component.config, config, {
     ccm: { load },
-    views: { main: app => { view = app.state; return app.state; } },
+    views: { main: app => { view = app.gui; return app.gui; } },
     ui: { render: () => {} },
   });
   return { app, view: () => view };
@@ -34,6 +34,9 @@ test("register, token access, metadata and logout", async () => {
   assert.equal(app.state.key, "account");
   assert.equal(app.isLoggedIn(), true);
   assert.deepEqual(value, { key: "account", user: "André", realm: "ccm" });
+  assert.deepEqual(JSON.parse(JSON.stringify(app.state)), {
+    key: "account", user: "André", realm: "ccm",
+  });
   value.key = "changed";
   assert.equal(app.state.key, "account");
   await app.start();
@@ -61,13 +64,13 @@ test("interactive login waits for successful form submission after an error", as
   });
   const waiting = app.login();
   assert.equal(waiting, app.login());
-  assert.equal(app.state.cancellable, true);
+  assert.equal(app.gui.cancellable, true);
   await submit(app, { user: "a", password: "wrong" });
   assert.equal(view().message, app.labels.invalid);
   assert.equal(app.isLoggedIn(), false);
   await submit(app, { user: "a", password: "right" });
   assert.equal((await waiting).key, "account");
-  assert.equal(app.state.cancellable, false);
+  assert.equal(app.gui.cancellable, false);
   assert.equal(app.getToken(), "jwt");
 });
 
@@ -104,25 +107,25 @@ test("invalid responses and disabled registration cannot create a session", asyn
 test("header actions open login and profile dialogs; cancellation keeps the session", async () => {
   const { app } = create();
   await app.start();
-  assert.equal(app.state.dialog, false);
+  assert.equal(app.gui.dialog, false);
   const login = app.login();
   const cancelled = assert.rejects(login, { name: "AbortError" });
-  assert.equal(app.state.dialog, true);
+  assert.equal(app.gui.dialog, true);
   app.events.cancel();
   await cancelled;
-  assert.equal(app.state.dialog, false);
+  assert.equal(app.gui.dialog, false);
   await app.login({ user: "a", password: "pw" });
-  assert.equal(app.state.dialog, false);
+  assert.equal(app.gui.dialog, false);
   app.events.open();
-  assert.equal(app.state.dialog, true);
-  assert.equal(app.state.mode, "profile");
+  assert.equal(app.gui.dialog, true);
+  assert.equal(app.gui.mode, "profile");
   app.events.requestDelete();
-  assert.equal(app.state.mode, "delete");
+  assert.equal(app.gui.mode, "delete");
   app.events.keepAccount();
-  assert.equal(app.state.mode, "profile");
+  assert.equal(app.gui.mode, "profile");
   app.events.cancel();
   assert.equal(app.getToken(), "jwt");
-  assert.equal(app.state.dialog, false);
+  assert.equal(app.gui.dialog, false);
 });
 
 test("account deletion requires success before clearing the local session", async () => {
@@ -139,11 +142,11 @@ test("account deletion requires success before clearing the local session", asyn
   app.events.requestDelete();
   await assert.rejects(app.deleteAccount(), { status: 500 });
   assert.equal(app.getToken(), "jwt");
-  assert.equal(app.state.message, app.labels.deletionFailed);
+  assert.equal(app.gui.message, app.labels.deletionFailed);
   fail = false;
   await app.deleteAccount();
   assert.deepEqual(requests.at(-1), { deleteAccount: true, token: "jwt" });
   assert.equal(app.getToken(), null);
   assert.equal(app.state.user, null);
-  assert.equal(app.state.dialog, false);
+  assert.equal(app.gui.dialog, false);
 });

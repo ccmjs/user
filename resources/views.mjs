@@ -22,9 +22,9 @@ export function trigger(app) {
 
 /** Creates the active dialog view without exposing the JWT. */
 export function dialog(app) {
-  const { state, labels } = app;
-  const deleting = state.mode === "delete";
-  const registering = state.mode === "register";
+  const { gui, labels } = app;
+  const deleting = gui.mode === "delete";
+  const registering = gui.mode === "register";
   const title = app.isLoggedIn()
     ? deleting ? labels.deleteTitle : labels.profile
     : registering ? labels.registerTitle : labels.title;
@@ -34,7 +34,7 @@ export function dialog(app) {
         <header class="dialog-header">
           <h1 id="${escape(app.index)}-title">${escape(title)}</h1>
           <button type="button" class="close-button" data-on-click="cancel"
-                  aria-label="${escape(labels.close)}" ${deleting && state.busy && "disabled"}>
+                  aria-label="${escape(labels.close)}" ${deleting && gui.busy && "disabled"}>
             ${icon(app, "close")}
           </button>
         </header>
@@ -70,29 +70,29 @@ function profile(app) {
 }
 
 function deletion(app) {
-  const { state, labels } = app;
+  const { gui, labels } = app;
   return app.ui.html`
     <p class="description">${escape(labels.deleteDescription)}</p>
     ${message(app)}
     <div class="actions">
       <button type="button" class="secondary" data-on-click="keepAccount"
-              ${state.busy && "disabled"} autofocus>${escape(labels.keepAccount)}</button>
+              ${gui.busy && "disabled"} autofocus>${escape(labels.keepAccount)}</button>
       <button type="button" class="danger" data-on-click="deleteAccount"
-              ${state.busy && "disabled"}>${escape(labels.confirmDelete)}</button>
+              ${gui.busy && "disabled"}>${escape(labels.confirmDelete)}</button>
     </div>
   `;
 }
 
 function authentication(app) {
-  const { state, labels } = app;
-  const registering = state.mode === "register";
+  const { gui, labels } = app;
+  const registering = gui.mode === "register";
   return app.ui.html`
     <form data-on-submit="submit">
-      <fieldset ${state.busy && "disabled"}>
+      <fieldset ${gui.busy && "disabled"}>
         <label>
           ${escape(labels.user)}
           <input name="user" type="text" autocomplete="username"
-                 value="${escape(state.username)}" required autofocus>
+                 value="${escape(gui.username)}" required autofocus>
         </label>
         <label>
           ${escape(labels.password)}
@@ -110,7 +110,7 @@ function authentication(app) {
       </fieldset>
     </form>
     ${app.registration && app.ui.html`
-      <button type="button" class="text-button" data-on-click="switchMode" ${state.busy && "disabled"}>
+      <button type="button" class="text-button" data-on-click="switchMode" ${gui.busy && "disabled"}>
         ${escape(registering ? labels.showLogin : labels.showRegister)}
       </button>
     `}
@@ -119,8 +119,8 @@ function authentication(app) {
 
 function message(app) {
   return app.ui.html`
-    <p class="message" role="${app.state.message ? "alert" : "status"}" aria-live="polite"
-    >${escape(app.state.busy ? app.labels.pending : app.state.message)}</p>
+    <p class="message" role="${app.gui.message ? "alert" : "status"}" aria-live="polite"
+    >${escape(app.gui.busy ? app.labels.pending : app.gui.message)}</p>
   `;
 }
 
