@@ -15,8 +15,8 @@ export const component = {
     // Whether the registration form is available
     registration: true,
 
-    // Optional callback: async ({ app, type, user }) => {}
-    onchange: null,
+    // Extensions: async ({ app, type }) => {}, executed sequentially
+    extensions: [],
 
     // Inline SVG markup or image URLs (SVG, PNG, JPG)
     icons: {
@@ -154,7 +154,7 @@ export const component = {
       this.gui.dialog = false;
       cancel();
       render();
-      if (changed) await notify("logout");
+      if (changed) await this.emit("logout");
     };
 
     const prompt = (nextMode) => {
@@ -179,18 +179,15 @@ export const component = {
       reject(new DOMException(this.labels.loginCancelled, "AbortError"));
     };
 
-    const notify = async (type) => {
-      await this.onchange?.({
-        app: this,
-        type,
-        user: token
-          ? {
-              key: this.state.key,
-              user: this.state.user,
-              realm: this.state.realm,
-            }
-          : null,
-      });
+    /**
+     * Runs extensions sequentially with { app, type } after successful actions.
+     * Events: login, register, logout, deleteAccount (after logout).
+     * Errors stop dispatch and propagate; completed state changes remain applied.
+     */
+    this.emit = async (type) => {
+      const extensions = [].concat(this.extensions || []);
+      for (const extension of extensions)
+        extension && (await extension({ app: this, type }));
     };
 
     const authenticate = async (operation, credentials) => {
@@ -272,7 +269,7 @@ export const component = {
       this.gui.dialog = false;
       waiting?.resolve(value);
       render();
-      await notify(operation);
+      await this.emit(operation);
       return value;
     };
 
@@ -308,7 +305,7 @@ export const component = {
         }
       }
       await this.logout();
-      await notify("deleteAccount");
+      await this.emit("deleteAccount");
     };
 
     /** DOM handlers bound by ccm-ui through data-on-* attributes. */

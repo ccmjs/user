@@ -26,7 +26,7 @@ test("register, token access, metadata and logout", async () => {
   const { app } = create(async request => {
     requests.push(request);
     return { key: "account", token: "jwt" };
-  }, { onchange: event => events.push(event.type) });
+  }, { extensions: [event => events.push(event.type)] });
   assert.equal(app.getToken(), null);
   const value = await app.register({ user: "André", password: "secret" });
   assert.deepEqual(requests[0].params, { register: { user: "André", password: "secret" } });
@@ -149,4 +149,41 @@ test("account deletion requires success before clearing the local session", asyn
   assert.equal(app.getToken(), null);
   assert.equal(app.state.user, null);
   assert.equal(app.gui.dialog, false);
+});
+
+test("extensions run sequentially with the component and event type", async () => {
+  const events = [];
+  const { app } = create(async request => request.params.deleteAccount
+    ? true : { key: "account", token: "jwt" }, {
+    extensions: [
+      async event => {
+        assert.deepEqual(Object.keys(event).sort(), ["app", "type"]);
+        assert.equal(event.app, app);
+        await Promise.resolve();
+        events.push(`first:${event.type}`);
+      },
+      ({ type }) => events.push(`second:${type}`),
+    ],
+  });
+  await app.login({ user: "a", password: "pw" });
+  await app.deleteAccount();
+  assert.deepEqual(events, [
+    "first:login", "second:login", "first:logout", "second:logout",
+    "first:deleteAccount", "second:deleteAccount",
+  ]);
+});
+
+test("extension errors stop dispatch without reverting authentication", async () => {
+  const failure = new Error("Extension failed");
+  let reached = false;
+  const { app } = create(undefined, {
+    extensions: [
+      async () => { throw failure; },
+      () => { reached = true; },
+    ],
+  });
+  await assert.rejects(app.login({ user: "a", password: "pw" }), error => error === failure);
+  assert.equal(reached, false);
+  assert.equal(app.getToken(), "jwt");
+  assert.equal(app.gui.busy, false);
 });

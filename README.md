@@ -19,7 +19,7 @@ to its own module URL. Change `url` in the demo to use another server.
 ```javascript
 const user = await ccm.start("./ccm.user.mjs", {
   url: "http://localhost:8080",
-  onchange: ({ type, user }) => console.log(type, user),
+  extensions: [({ app, type }) => console.log(type, app.state)],
 }, document.querySelector("main"));
 
 // Resolves after successful interactive authentication; cancellation rejects
@@ -59,8 +59,13 @@ the form open for another attempt. A successful registration satisfies a pending
 Configuration is documented directly in `ccm.user.mjs`. Override `labels`,
 `icons`, `views` or `css` to customize the interface. `registration: false` hides and
 disables registration in this component; it does not disable the server endpoint.
-`onchange({ app, type, user })` runs after login, registration, logout and account deletion;
-`type` is `login`, `register`, `logout` or `deleteAccount` (deletion emits logout first). Its user metadata contains no token.
+`extensions` accepts a function or an array of functions receiving `{ app, type }`.
+`app.emit(type)` awaits them sequentially in configuration order. Events are
+`login`, `register`, `logout` and `deleteAccount`, emitted after the successful
+action (deletion emits `logout` first). User metadata is available in `app.state`.
+An extension error stops dispatch and rejects the calling operation; completed
+state changes are not rolled back. If a logout extension fails during deletion,
+the subsequent `deleteAccount` event is not emitted.
 
 `icons.login`, `icons.user` and `icons.close` accept complete inline SVG markup
 (starting with `<svg`) or an image URL (SVG, PNG, JPG). Formats can be mixed:
