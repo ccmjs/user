@@ -49,6 +49,14 @@ export const component = {
       duplicate: "This username is already taken.",
       failed: "Sign-in failed. Please try again.",
       registrationFailed: "Registration failed. Please try again.",
+      registrationDisabled: "Registration is disabled.",
+      loginCancelled: "Login cancelled.",
+      authenticationBusy: "Authentication is already in progress.",
+      invalidCredentials: "Username and password must be strings.",
+      invalidAuthenticationResponse: "Invalid authentication response.",
+      deletionRequiresLogin: "Sign in before deleting your account.",
+      requestBusy: "A request is already in progress.",
+      invalidDeletionResponse: "Invalid account deletion response.",
     },
   },
   Instance: function () {
@@ -102,7 +110,7 @@ export const component = {
      */
     this.register = (credentials) => {
       if (!this.registration)
-        return Promise.reject(new Error("Registration is disabled."));
+        return Promise.reject(new Error(this.labels.registrationDisabled));
       if (token)
         return Promise.resolve({
           key: this.state.key,
@@ -151,7 +159,7 @@ export const component = {
       const { reject } = pending;
       pending = null;
       this.state.cancellable = false;
-      reject(new DOMException("Login cancelled.", "AbortError"));
+      reject(new DOMException(this.labels.loginCancelled, "AbortError"));
     };
 
     const notify = async (type) => {
@@ -170,13 +178,13 @@ export const component = {
 
     const authenticate = async (operation, credentials) => {
       if (this.state.busy)
-        throw new Error("Authentication is already in progress.");
+        throw new Error(this.labels.authenticationBusy);
       if (
         !credentials ||
         typeof credentials.user !== "string" ||
         typeof credentials.password !== "string"
       )
-        throw new TypeError("Username and password must be strings.");
+        throw new TypeError(this.labels.invalidCredentials);
       const current = ++generation;
       this.state.busy = true;
       this.state.username = credentials.user;
@@ -205,7 +213,7 @@ export const component = {
           params,
         });
         if (current !== generation)
-          throw new DOMException("Login cancelled.", "AbortError");
+          throw new DOMException(this.labels.loginCancelled, "AbortError");
         if (
           !result ||
           typeof result.key !== "string" ||
@@ -213,7 +221,7 @@ export const component = {
           typeof result.token !== "string" ||
           !result.token
         )
-          throw new Error("Invalid authentication response.");
+          throw new Error(this.labels.invalidAuthenticationResponse);
         token = result.token;
         this.state.key = result.key;
         this.state.user = credentials.user;
@@ -253,8 +261,8 @@ export const component = {
 
     /** Marks the current account as deleted and discards its local session. */
     this.deleteAccount = async () => {
-      if (!token) throw new Error("Sign in before deleting your account.");
-      if (this.state.busy) throw new Error("A request is already in progress.");
+      if (!token) throw new Error(this.labels.deletionRequiresLogin);
+      if (this.state.busy) throw new Error(this.labels.requestBusy);
       const current = ++generation;
       this.state.busy = true;
       this.state.message = "";
@@ -267,7 +275,7 @@ export const component = {
           params: { deleteAccount: true, token },
         });
         if (result !== true)
-          throw new Error("Invalid account deletion response.");
+          throw new Error(this.labels.invalidDeletionResponse);
         if (current !== generation) return;
       } catch (error) {
         if (current === generation)
