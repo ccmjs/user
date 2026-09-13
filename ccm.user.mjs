@@ -17,6 +17,10 @@ export const component = {
     views: ["ccm.load", "././resources/views.mjs"],
     css: ["ccm.load", "././resources/styles.css"],
 
+    // Optional hosted popup: { url: "https://your-pages-origin/user/auth/google/google.html", provider: "google" }
+    google: null,
+    googlePopup: ["ccm.load", "././auth/google/google.mjs"],
+
     // Whether the registration form is available
     registration: true,
 
@@ -74,6 +78,12 @@ export const component = {
       invalidAuthenticationResponse: "Invalid authentication response.",
       deletionRequiresLogin: "Sign in before deleting your account.",
       requestBusy: "A request is already in progress.",
+      googleFailed: "Google sign-in failed. Please try again.",
+      googleUnavailable: "Google sign-in could not be loaded. Please reopen this dialog to retry.",
+      googleLogin: "Sign in with Google",
+      googlePopupBlocked: "Please allow the login popup and try again.",
+      googleTimeout: "Google sign-in timed out. Please try again.",
+      invalidProviderCredentials: "An ID token is required for provider login.",
       invalidDeletionResponse: "Invalid account deletion response.",
     },
   },
@@ -95,6 +105,7 @@ export const component = {
       dialog: false,
     };
 
+    let cancelGoogleLogin;
     let token = null;
     let pendingLogin; // Shared promise for callers waiting on the login form
     // Incrementing invalidates older responses; it does not abort the HTTP request.
@@ -145,8 +156,12 @@ export const component = {
         : promptLogin("register");
     };
 
+    /** Accepts a provider callback; only the server decides the user's identity. */
+    this.loginWithProvider = (provider, credentials) => authenticate("login", credentials, provider);
+
     /** Discards the session and cancels a pending interactive login. */
     this.logout = async () => {
+      cancelGoogleLogin?.();
       requestVersion++;
       this.gui.busy = false;
       const changed = token !== null;
@@ -199,18 +214,20 @@ export const component = {
     };
 
     /** Shared request flow for credential-based calls and form submissions. */
-    const authenticate = async (operation, credentials) => {
+    const authenticate = async (operation, credentials, provider = "ccm") => {
       if (this.gui.busy)
         throw new Error(this.labels.authenticationBusy);
-      if (
+      if (provider === "ccm" && (
         !credentials ||
         typeof credentials.user !== "string" ||
         typeof credentials.password !== "string"
-      )
+      ))
         throw new TypeError(this.labels.invalidCredentials);
+      if (provider !== "ccm" && (!credentials || typeof credentials.idToken !== "string" || !credentials.idToken))
+        throw new TypeError(this.labels.invalidProviderCredentials);
       const version = ++requestVersion;
       this.gui.busy = true;
-      this.gui.username = credentials.user;
+      if (provider === "ccm") this.gui.username = credentials.user;
       this.gui.message = "";
       render();
       try {
@@ -223,11 +240,8 @@ export const component = {
                 },
               }
             : {
-                login: "ccm",
-                credentials: {
-                  user: credentials.user,
-                  password: credentials.password,
-                },
+                login: provider,
+                credentials,
               };
         const result = await this.ccm.load({
           url: this.url,
@@ -242,16 +256,18 @@ export const component = {
           typeof result.key !== "string" ||
           !result.key ||
           typeof result.token !== "string" ||
-          !result.token
+          !result.token ||
+          (provider !== "ccm" && (typeof result.user !== "string" || result.realm !== provider))
         )
           throw new Error(this.labels.invalidAuthenticationResponse);
         token = result.token;
         this.state.key = result.key;
-        this.state.user = credentials.user;
-        this.state.realm = "ccm";
+        this.state.user = provider === "ccm" ? credentials.user : result.user;
+        this.state.realm = provider;
       } catch (error) {
         if (version === requestVersion) {
-          if (error.status === 401) this.gui.message = this.labels.invalid;
+          if (provider !== "ccm") this.gui.message = this.labels.googleFailed;
+          else if (error.status === 401) this.gui.message = this.labels.invalid;
           else if (error.status === 409) this.gui.message = this.labels.duplicate;
           else if (operation === "register")
             this.gui.message = this.labels.registrationFailed;
@@ -317,6 +333,28 @@ export const component = {
 
     /** DOM handlers bound by ccm-ui through data-on-* attributes. */
     this.events = {
+      google: async () => {
+        if (!this.google || this.gui.busy) return;
+        const version = requestVersion;
+        // Open directly from the click so browsers allow the popup.
+        const popup = this.googlePopup.login(this);
+        cancelGoogleLogin = popup.cancel;
+        this.gui.busy = true;
+        this.gui.message = "";
+        render();
+        try {
+          const credentials = await popup.promise;
+          if (version !== requestVersion) return;
+          this.gui.busy = false;
+          await this.loginWithProvider(this.google.provider || "google", credentials);
+        } catch (error) {
+          if (version !== requestVersion) return;
+          this.gui.message = error.name === "AbortError" ? "" : this.labels.googleFailed;
+        } finally {
+          if (cancelGoogleLogin === popup.cancel) cancelGoogleLogin = null;
+          if (version === requestVersion) { this.gui.busy = false; render(); }
+        }
+      },
       open: () => {
         if (token) {
           this.gui.mode = "profile";
@@ -379,6 +417,7 @@ export const component = {
       cancel: (event) => {
         event?.preventDefault();
         if (this.gui.busy && this.gui.mode === "delete") return;
+        cancelGoogleLogin?.();
         this.gui.dialog = false;
         requestVersion++;
         this.gui.busy = false;

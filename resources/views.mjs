@@ -65,11 +65,11 @@ function profile(app) {
     <button type="button" class="primary" data-on-click="logout" autofocus>
       ${escape(labels.logout)}
     </button>
-    <footer class="account-actions">
+    ${state.realm === "ccm" && app.ui.html`<footer class="account-actions">
       <button type="button" class="delete-link" data-on-click="requestDelete">
         ${escape(labels.deleteAccount)}
       </button>
-    </footer>
+    </footer>`}
   `;
 }
 
@@ -91,6 +91,8 @@ function authentication(app) {
   const { gui, labels } = app;
   const registering = gui.mode === "register";
   return app.ui.html`
+    ${app.google && app.ui.html`<button type="button" class="google-login secondary" data-on-click="google"
+      ${gui.busy && "disabled"}>${escape(app.labels.googleLogin)}</button>`}
     <form data-on-submit="submit">
       <fieldset ${gui.busy && "disabled"}>
         <label>

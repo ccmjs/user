@@ -95,6 +95,11 @@
     }
   }
 
+  .google-login {
+    margin-block-end: 1rem;
+    min-block-size: 2.5rem;
+  }
+
   .dialog-container {
     container: dialog / inline-size;
   }

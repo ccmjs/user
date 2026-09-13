@@ -92,7 +92,8 @@ The session exists only in this component instance's memory. Reloading the page
 logs out. No passwords or JWTs are written to browser storage. Token expiration is
 verified by the server; `isLoggedIn()` does not validate the JWT. Logout discards
 the local token and does not revoke a previously issued JWT. Use HTTPS in deployment.
-OIDC and dataset permissions are separate future steps.
+Google popup login is described in [auth/google/GOOGLE-SETUP.md](auth/google/GOOGLE-SETUP.md).
+MIA OIDC and dataset permissions are separate future steps.
 
 ## Tests
 
