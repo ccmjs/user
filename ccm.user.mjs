@@ -5,7 +5,7 @@
  */
 export const component = {
   name: "user",
-  ccm: "https://ccmjs.github.io/framework/ccm.js",
+  ccm: "././libs/ccmjs/ccm.js",
   config: {
     // Server providing the registration, login and account deletion JSON API
     url: "http://localhost:8080",
