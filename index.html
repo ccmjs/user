@@ -6,10 +6,7 @@
   <title>ccmjs User Demo</title>
   <script src="./libs/ccmjs/ccm.js"></script>
   <script type="module">
-    await ccm.start("./ccm.user.mjs", {
-      url: "http://localhost:8080",
-      google: {}, // Uses auth/google/google.html from this component; configure its public client ID first.
-    }, document.body);
+    await ccm.start("./ccm.user.mjs", {}, document.body);
   </script>
 </head>
 <body></body>

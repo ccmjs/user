@@ -18,7 +18,10 @@ export const component = {
     css: ["ccm.load", "././resources/styles.css"],
 
     // Optional hosted popup: { url: "https://your-pages-origin/user/auth/google/google.html", provider: "google" }
-    google: null,
+    google: {
+      url: "https://ccmjs.github.io/user/auth/google/google.html",
+      provider: "google",
+    },
     googlePopup: ["ccm.load", "././auth/google/google.mjs"],
 
     // Whether the registration form is available
@@ -79,7 +82,8 @@ export const component = {
       deletionRequiresLogin: "Sign in before deleting your account.",
       requestBusy: "A request is already in progress.",
       googleFailed: "Google sign-in failed. Please try again.",
-      googleUnavailable: "Google sign-in could not be loaded. Please reopen this dialog to retry.",
+      googleUnavailable:
+        "Google sign-in could not be loaded. Please reopen this dialog to retry.",
       googleLogin: "Sign in with Google",
       googlePopupBlocked: "Please allow the login popup and try again.",
       googleTimeout: "Google sign-in timed out. Please try again.",
@@ -133,7 +137,9 @@ export const component = {
           user: this.state.user,
           realm: this.state.realm,
         });
-      return credentials ? authenticate("login", credentials) : promptLogin("login");
+      return credentials
+        ? authenticate("login", credentials)
+        : promptLogin("login");
     };
 
     /**
@@ -157,7 +163,8 @@ export const component = {
     };
 
     /** Accepts a provider callback; only the server decides the user's identity. */
-    this.loginWithProvider = (provider, credentials) => authenticate("login", credentials, provider);
+    this.loginWithProvider = (provider, credentials) =>
+      authenticate("login", credentials, provider);
 
     /** Discards the session and cancels a pending interactive login. */
     this.logout = async () => {
@@ -215,15 +222,20 @@ export const component = {
 
     /** Shared request flow for credential-based calls and form submissions. */
     const authenticate = async (operation, credentials, provider = "ccm") => {
-      if (this.gui.busy)
-        throw new Error(this.labels.authenticationBusy);
-      if (provider === "ccm" && (
-        !credentials ||
-        typeof credentials.user !== "string" ||
-        typeof credentials.password !== "string"
-      ))
+      if (this.gui.busy) throw new Error(this.labels.authenticationBusy);
+      if (
+        provider === "ccm" &&
+        (!credentials ||
+          typeof credentials.user !== "string" ||
+          typeof credentials.password !== "string")
+      )
         throw new TypeError(this.labels.invalidCredentials);
-      if (provider !== "ccm" && (!credentials || typeof credentials.idToken !== "string" || !credentials.idToken))
+      if (
+        provider !== "ccm" &&
+        (!credentials ||
+          typeof credentials.idToken !== "string" ||
+          !credentials.idToken)
+      )
         throw new TypeError(this.labels.invalidProviderCredentials);
       const version = ++requestVersion;
       this.gui.busy = true;
@@ -257,7 +269,8 @@ export const component = {
           !result.key ||
           typeof result.token !== "string" ||
           !result.token ||
-          (provider !== "ccm" && (typeof result.user !== "string" || result.realm !== provider))
+          (provider !== "ccm" &&
+            (typeof result.user !== "string" || result.realm !== provider))
         )
           throw new Error(this.labels.invalidAuthenticationResponse);
         token = result.token;
@@ -268,7 +281,8 @@ export const component = {
         if (version === requestVersion) {
           if (provider !== "ccm") this.gui.message = this.labels.googleFailed;
           else if (error.status === 401) this.gui.message = this.labels.invalid;
-          else if (error.status === 409) this.gui.message = this.labels.duplicate;
+          else if (error.status === 409)
+            this.gui.message = this.labels.duplicate;
           else if (operation === "register")
             this.gui.message = this.labels.registrationFailed;
           else this.gui.message = this.labels.failed;
@@ -346,13 +360,20 @@ export const component = {
           const credentials = await popup.promise;
           if (version !== requestVersion) return;
           this.gui.busy = false;
-          await this.loginWithProvider(this.google.provider || "google", credentials);
+          await this.loginWithProvider(
+            this.google.provider || "google",
+            credentials,
+          );
         } catch (error) {
           if (version !== requestVersion) return;
-          this.gui.message = error.name === "AbortError" ? "" : this.labels.googleFailed;
+          this.gui.message =
+            error.name === "AbortError" ? "" : this.labels.googleFailed;
         } finally {
           if (cancelGoogleLogin === popup.cancel) cancelGoogleLogin = null;
-          if (version === requestVersion) { this.gui.busy = false; render(); }
+          if (version === requestVersion) {
+            this.gui.busy = false;
+            render();
+          }
         }
       },
       open: () => {
