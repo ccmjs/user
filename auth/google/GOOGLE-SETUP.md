@@ -50,7 +50,10 @@ python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
 Start the CCM server on port 8080 and visit `http://localhost:8000/`.
-The demo enables `google: {}` and opens its local `auth/google/google.html` by default.
+The default Google configuration opens the hosted GitHub Pages popup. To test
+the popup locally, set `google.url` to `http://localhost:8000/auth/google/google.html`.
+`google.popup` loads the popup adapter through `ccm.load`; nested configuration
+overrides retain that default dependency. Set `google: null` to disable Google login.
 The popup must be opened through the component, not directly.
 
 To test the hosted popup from a different website, configure:
@@ -60,7 +63,6 @@ await ccm.start("https://ccmjs.github.io/user/ccm.user.mjs", {
   url: "https://YOUR_CCM_SERVER",
   google: {
     url: "https://ccmjs.github.io/user/auth/google/google.html",
-    provider: "google",
   },
 }, document.querySelector("main"));
 ```

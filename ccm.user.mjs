@@ -1,33 +1,29 @@
-/**
- * Authentication with ccm-server: configuration, instance state, API and UI events.
- * Markup lives in resources/views.mjs; presentation lives in resources/styles.css.
- * The token is private; state contains metadata and gui contains transient UI state.
- */
 export const component = {
   name: "user",
   ccm: "././libs/ccmjs/ccm.js",
   config: {
-    // Server providing the registration, login and account deletion JSON API
+    // Server API for registration, login and account deletion; logout is local
     url: "http://localhost:8080",
 
-    // UI utilities (templating and declarative event binding)
+    // UI utilities (templating + event binding)
     ui: ["ccm.load", "././libs/ccm-ui/ccm-ui.mjs"],
 
-    // Views and styles are resolved relative to this component
+    // Component views (HTML templates)
     views: ["ccm.load", "././resources/views.mjs"],
+
+    // Component styles (CSS)
     css: ["ccm.load", "././resources/styles.css"],
 
-    // Optional hosted popup: { url: "https://your-pages-origin/user/auth/google/google.html", provider: "google" }
+    // Google authentication
     google: {
       url: "https://ccmjs.github.io/user/auth/google/google.html",
-      provider: "google",
+      popup: ["ccm.load", "././auth/google/google.mjs"],
     },
-    googlePopup: ["ccm.load", "././auth/google/google.mjs"],
 
     // Whether the registration form is available
     registration: true,
 
-    // Extensions: async ({ app, type }) => {}, executed sequentially
+    // Extension points
     extensions: [],
 
     // Inline SVG markup or image URLs (SVG, PNG, JPG)
@@ -43,6 +39,7 @@ export const component = {
         focusable="false"><path d="M6 6l12 12 M6 18L18 6"/></svg>`,
     },
 
+    // Static UI labels
     labels: {
       title: "Sign in",
       profile: "Your profile",
@@ -351,7 +348,7 @@ export const component = {
         if (!this.google || this.gui.busy) return;
         const version = requestVersion;
         // Open directly from the click so browsers allow the popup.
-        const popup = this.googlePopup.login(this);
+        const popup = this.google.popup.login(this);
         cancelGoogleLogin = popup.cancel;
         this.gui.busy = true;
         this.gui.message = "";
@@ -360,10 +357,7 @@ export const component = {
           const credentials = await popup.promise;
           if (version !== requestVersion) return;
           this.gui.busy = false;
-          await this.loginWithProvider(
-            this.google.provider || "google",
-            credentials,
-          );
+          await this.loginWithProvider("google", credentials);
         } catch (error) {
           if (version !== requestVersion) return;
           this.gui.message =
