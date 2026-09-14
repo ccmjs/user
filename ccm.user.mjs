@@ -127,10 +127,17 @@ export const component = {
       if (!saved) return;
       try {
         const session = JSON.parse(saved);
-        if (!session || typeof session.token !== "string" || !session.token ||
-            typeof session.key !== "string" || !session.key ||
-            typeof session.user !== "string" || session.realm !== this.realm ||
-            typeof session.provider !== "string" || !session.provider)
+        if (
+          !session ||
+          typeof session.token !== "string" ||
+          !session.token ||
+          typeof session.key !== "string" ||
+          !session.key ||
+          typeof session.user !== "string" ||
+          session.realm !== this.realm ||
+          typeof session.provider !== "string" ||
+          !session.provider
+        )
           throw new Error(this.labels.invalidAuthenticationResponse);
         token = session.token;
         this.state.key = session.key;
@@ -143,34 +150,8 @@ export const component = {
       }
     };
 
-    /**
-     * Accesses the saved session for this server and realm.
-     * Browser storage may be unavailable; authentication still works in memory.
-     *
-     * @param {"getItem"|"setItem"|"removeItem"} method - Storage operation to perform
-     * @param {string} [value] - Serialized session to save; required only for setItem
-     * @returns {string|null} Serialized session for getItem, otherwise null; also null
-     *   when no session exists, persistence is disabled or storage access fails
-     */
-    const sessionStorageAccess = (method, value) => {
-      if (!this.session) return null;
-      try {
-        const server = new URL(this.url).href;
-        const key = `ccm-user-session:${JSON.stringify([server, this.realm])}`;
-        return sessionStorage[method](key, value) ?? null;
-      } catch {
-        return null;
-      }
-    };
-
     /** Renders the current authentication state without resetting the session. */
     this.start = async () => render();
-
-    /** Returns whether this instance holds a server-issued token. */
-    this.isLoggedIn = () => token !== null;
-
-    /** Returns the JWT, or null when logged out. */
-    this.getToken = () => token;
 
     /**
      * Logs in with credentials, or waits for an interactive login.
@@ -237,138 +218,11 @@ export const component = {
       if (changed) await this.emit("logout");
     };
 
-    /** Opens one shared login flow; failed submissions leave its promise pending. */
-    const promptLogin = (nextMode) => {
-      if (pendingLogin) return pendingLogin.promise;
-      this.gui.mode = nextMode;
-      this.gui.dialog = true;
-      this.gui.message = "";
-      const promise = new Promise((resolve, reject) => {
-        pendingLogin = { resolve, reject };
-      });
-      pendingLogin.promise = promise;
-      this.gui.cancellable = true;
-      render();
-      return promise;
-    };
+    /** Returns whether this instance holds a server-issued token. */
+    this.isLoggedIn = () => token !== null;
 
-    /** Rejects waiting callers without changing an existing authenticated session. */
-    const cancelPendingLogin = () => {
-      if (!pendingLogin) return;
-      const { reject } = pendingLogin;
-      pendingLogin = null;
-      this.gui.cancellable = false;
-      reject(new DOMException(this.labels.loginCancelled, "AbortError"));
-    };
-
-    /**
-     * Runs extensions sequentially with { app, type } after successful actions.
-     * Events: login, register, logout, deleteAccount (after logout).
-     * Errors stop dispatch and propagate; completed state changes remain applied.
-     */
-    this.emit = async (type) => {
-      const extensions = [].concat(this.extensions || []);
-      for (const extension of extensions)
-        if (extension) await extension({ app: this, type });
-    };
-
-    /** Shared request flow for credential-based calls and form submissions. */
-    const authenticate = async (operation, credentials, provider = "ccm") => {
-      if (this.gui.busy) throw new Error(this.labels.authenticationBusy);
-      if (
-        provider === "ccm" &&
-        (!credentials ||
-          typeof credentials.user !== "string" ||
-          typeof credentials.password !== "string")
-      )
-        throw new TypeError(this.labels.invalidCredentials);
-      if (
-        provider !== "ccm" &&
-        (!credentials ||
-          typeof credentials.idToken !== "string" ||
-          !credentials.idToken)
-      )
-        throw new TypeError(this.labels.invalidProviderCredentials);
-      const version = ++requestVersion;
-      this.gui.busy = true;
-      if (provider === "ccm") this.gui.username = credentials.user;
-      this.gui.message = "";
-      render();
-      try {
-        const params =
-          operation === "register"
-            ? {
-                register: {
-                  user: credentials.user,
-                  password: credentials.password,
-                },
-              }
-            : {
-                login: provider,
-                credentials,
-              };
-        params.realm = this.realm;
-        const result = await this.ccm.load({
-          url: this.url,
-          method: "POST",
-          params,
-        });
-        if (version !== requestVersion)
-          throw new DOMException(this.labels.loginCancelled, "AbortError");
-        if (
-          !result ||
-          typeof result.key !== "string" ||
-          !result.key ||
-          typeof result.token !== "string" ||
-          !result.token ||
-          (provider !== "ccm" &&
-            (typeof result.user !== "string" ||
-              result.realm !== this.realm ||
-              result.provider !== provider))
-        )
-          throw new Error(this.labels.invalidAuthenticationResponse);
-        token = result.token;
-        this.state.key = result.key;
-        this.state.user = provider === "ccm" ? credentials.user : result.user;
-        this.state.realm = this.realm;
-        this.state.provider = provider;
-        sessionStorageAccess("setItem", JSON.stringify({
-          token, key: this.state.key, user: this.state.user,
-          realm: this.state.realm, provider: this.state.provider,
-        }));
-      } catch (error) {
-        if (version === requestVersion) {
-          if (provider !== "ccm") this.gui.message = this.labels.googleFailed;
-          else if (error.status === 401) this.gui.message = this.labels.invalid;
-          else if (error.status === 409)
-            this.gui.message = this.labels.duplicate;
-          else if (operation === "register")
-            this.gui.message = this.labels.registrationFailed;
-          else this.gui.message = this.labels.failed;
-        }
-        throw error;
-      } finally {
-        if (version === requestVersion) {
-          this.gui.busy = false;
-          render();
-        }
-      }
-      const value = {
-        key: this.state.key,
-        user: this.state.user,
-        realm: this.state.realm,
-        provider: this.state.provider,
-      };
-      const waiting = pendingLogin;
-      pendingLogin = null;
-      this.gui.cancellable = false;
-      this.gui.dialog = false;
-      // Interactive callers receive the session before extensions run.
-      waiting?.resolve(value);
-      render();
-      await this.emit(operation);
-      return value;
-    };
+    /** Returns the JWT, or null when logged out. */
+    this.getToken = () => token;
 
     /** Marks the current account as deleted and discards its local session. */
     this.deleteAccount = async () => {
@@ -504,6 +358,37 @@ export const component = {
       },
     };
 
+    /**
+     * Runs extensions sequentially with { app, type } after successful actions.
+     * Events: login, register, logout, deleteAccount (after logout).
+     * Errors stop dispatch and propagate; completed state changes remain applied.
+     */
+    this.emit = async (type) => {
+      const extensions = [].concat(this.extensions || []);
+      for (const extension of extensions)
+        if (extension) await extension({ app: this, type });
+    };
+
+    /**
+     * Accesses the saved session for this server and realm.
+     * Browser storage may be unavailable; authentication still works in memory.
+     *
+     * @param {"getItem"|"setItem"|"removeItem"} method - Storage operation to perform
+     * @param {string} [value] - Serialized session to save; required only for setItem
+     * @returns {string|null} Serialized session for getItem, otherwise null; also null
+     *   when no session exists, persistence is disabled or storage access fails
+     */
+    const sessionStorageAccess = (method, value) => {
+      if (!this.session) return null;
+      try {
+        const server = new URL(this.url).href;
+        const key = `ccm-user-session:${JSON.stringify([server, this.realm])}`;
+        return sessionStorage[method](key, value) ?? null;
+      } catch {
+        return null;
+      }
+    };
+
     const render = () => {
       // Replacing an open dialog would lose its native modal state and focus handling.
       if (!this.element?.querySelector("[data-user-shell]"))
@@ -530,6 +415,134 @@ export const component = {
         dialog.close();
         this.element.querySelector("[data-user-trigger] button")?.focus();
       }
+    };
+
+    /** Opens one shared login flow; failed submissions leave its promise pending. */
+    const promptLogin = (nextMode) => {
+      if (pendingLogin) return pendingLogin.promise;
+      this.gui.mode = nextMode;
+      this.gui.dialog = true;
+      this.gui.message = "";
+      const promise = new Promise((resolve, reject) => {
+        pendingLogin = { resolve, reject };
+      });
+      pendingLogin.promise = promise;
+      this.gui.cancellable = true;
+      render();
+      return promise;
+    };
+
+    /** Rejects waiting callers without changing an existing authenticated session. */
+    const cancelPendingLogin = () => {
+      if (!pendingLogin) return;
+      const { reject } = pendingLogin;
+      pendingLogin = null;
+      this.gui.cancellable = false;
+      reject(new DOMException(this.labels.loginCancelled, "AbortError"));
+    };
+
+    /** Shared request flow for credential-based calls and form submissions. */
+    const authenticate = async (operation, credentials, provider = "ccm") => {
+      if (this.gui.busy) throw new Error(this.labels.authenticationBusy);
+      if (
+        provider === "ccm" &&
+        (!credentials ||
+          typeof credentials.user !== "string" ||
+          typeof credentials.password !== "string")
+      )
+        throw new TypeError(this.labels.invalidCredentials);
+      if (
+        provider !== "ccm" &&
+        (!credentials ||
+          typeof credentials.idToken !== "string" ||
+          !credentials.idToken)
+      )
+        throw new TypeError(this.labels.invalidProviderCredentials);
+      const version = ++requestVersion;
+      this.gui.busy = true;
+      if (provider === "ccm") this.gui.username = credentials.user;
+      this.gui.message = "";
+      render();
+      try {
+        const params =
+          operation === "register"
+            ? {
+                register: {
+                  user: credentials.user,
+                  password: credentials.password,
+                },
+              }
+            : {
+                login: provider,
+                credentials,
+              };
+        params.realm = this.realm;
+        const result = await this.ccm.load({
+          url: this.url,
+          method: "POST",
+          params,
+        });
+        if (version !== requestVersion)
+          throw new DOMException(this.labels.loginCancelled, "AbortError");
+        if (
+          !result ||
+          typeof result.key !== "string" ||
+          !result.key ||
+          typeof result.token !== "string" ||
+          !result.token ||
+          (provider !== "ccm" &&
+            (typeof result.user !== "string" ||
+              result.realm !== this.realm ||
+              result.provider !== provider))
+        )
+          throw new Error(this.labels.invalidAuthenticationResponse);
+        token = result.token;
+        this.state.key = result.key;
+        this.state.user = provider === "ccm" ? credentials.user : result.user;
+        this.state.realm = this.realm;
+        this.state.provider = provider;
+        sessionStorageAccess(
+          "setItem",
+          JSON.stringify({
+            token,
+            key: this.state.key,
+            user: this.state.user,
+            realm: this.state.realm,
+            provider: this.state.provider,
+          }),
+        );
+      } catch (error) {
+        if (version === requestVersion) {
+          if (provider !== "ccm") this.gui.message = this.labels.googleFailed;
+          else if (error.status === 401) this.gui.message = this.labels.invalid;
+          else if (error.status === 409)
+            this.gui.message = this.labels.duplicate;
+          else if (operation === "register")
+            this.gui.message = this.labels.registrationFailed;
+          else this.gui.message = this.labels.failed;
+        }
+        throw error;
+      } finally {
+        if (version === requestVersion) {
+          this.gui.busy = false;
+          render();
+        }
+      }
+      const value = {
+        key: this.state.key,
+        user: this.state.user,
+        realm: this.state.realm,
+        provider: this.state.provider,
+      };
+      const waiting = pendingLogin;
+      pendingLogin = null;
+      this.gui.cancellable = false;
+      this.gui.dialog = false;
+      // Interactive callers receive the session before extensions run.
+      waiting?.resolve(value);
+      render();
+      await this.emit(operation);
+      return value;
     };
   },
 };
