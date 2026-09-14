@@ -365,6 +365,20 @@ export const component = {
       }
     };
 
+    /**
+     * Checks the shape of user metadata and its realm, not the token's validity.
+     *
+     * @param {unknown} value - User metadata, e.g. this.state or a saved session
+     * @returns {boolean} Whether all required identity fields are valid
+     */
+    const isValidIdentity = (value) =>
+      this.ccm.helper.isDataset(value) &&
+      typeof value.key === "string" &&
+      typeof value.user === "string" &&
+      value.realm === this.realm &&
+      typeof value.provider === "string" &&
+      value.provider !== "";
+
     /** Updates the views while preserving the existing dialog element. */
     const render = () => {
       // Replacing an open dialog would lose its native modal state and focus handling.
@@ -510,20 +524,6 @@ export const component = {
       render();
       return promise;
     };
-
-    /**
-     * Checks the shape of user metadata and its realm, not the token's validity.
-     *
-     * @param {unknown} value - User metadata, e.g. this.state or a saved session
-     * @returns {boolean} Whether all required identity fields are valid
-     */
-    const isValidIdentity = (value) =>
-      this.ccm.helper.isDataset(value) &&
-      typeof value.key === "string" &&
-      typeof value.user === "string" &&
-      value.realm === this.realm &&
-      typeof value.provider === "string" &&
-      value.provider !== "";
 
     /** Rejects waiting callers without changing an existing authenticated session. */
     const cancelPendingLogin = () => {
