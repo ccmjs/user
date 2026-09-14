@@ -187,3 +187,108 @@ test("extension errors stop dispatch without reverting authentication", async ()
   assert.equal(app.getToken(), "jwt");
   assert.equal(app.gui.busy, false);
 });
+
+function browserStorage(t) {
+  const values = new Map();
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage");
+  Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  } });
+  t.after(() => {
+    if (descriptor) Object.defineProperty(globalThis, "sessionStorage", descriptor);
+    else delete globalThis.sessionStorage;
+  });
+  return values;
+}
+
+test("reload restores server-verified metadata and stores only the CCM token", async t => {
+  const storage = browserStorage(t);
+  const { app } = create();
+  await app.init();
+  await app.login({ user: "a", password: "secret" });
+  assert.deepEqual([...storage.values()], ["jwt"]);
+  const events = [];
+  const { app: reloaded } = create(async request => {
+    assert.deepEqual(request.params, { session: true, token: "jwt" });
+    return { key: "account", user: "server-name", realm: "ccm" };
+  }, { extensions: [({ type }) => events.push(type)] });
+  await reloaded.init();
+  await reloaded.start();
+  assert.equal(reloaded.getToken(), "jwt");
+  assert.deepEqual(reloaded.state, { key: "account", user: "server-name", realm: "ccm" });
+  assert.deepEqual(events, []);
+  assert.equal(reloaded.gui.dialog, false);
+  await reloaded.logout();
+  assert.equal(storage.size, 0);
+});
+
+test("Google sessions restore without reopening Google and deletion clears storage", async t => {
+  const storage = browserStorage(t);
+  const { app } = create(async () => ({ key: "google-account", user: "Google user", realm: "google", token: "ccm-jwt" }));
+  await app.loginWithProvider("google", { idToken: "google-proof" });
+  assert.deepEqual([...storage.values()], ["ccm-jwt"]);
+  const { app: reloaded } = create(async () => ({ key: "google-account", user: "Google user", realm: "google" }));
+  await reloaded.init();
+  assert.equal(reloaded.state.realm, "google");
+  await reloaded.logout();
+  const { app: local } = create(async request => request.params.deleteAccount ? true : { key: "local", token: "jwt" });
+  await local.register({ user: "a", password: "pw" });
+  await local.deleteAccount();
+  assert.equal(storage.size, 0);
+});
+
+test("invalid or expired sessions are removed; temporary failures preserve the saved token", async t => {
+  const storage = browserStorage(t);
+  for (const status of [401, 403, 500]) {
+    const { app } = create();
+    await app.login({ user: "a", password: "pw" });
+    const { app: reloaded } = create(async () => { throw Object.assign(new Error(), { status }); });
+    await reloaded.init();
+    assert.equal(reloaded.isLoggedIn(), false);
+    assert.equal(reloaded.gui.busy, false);
+    assert.equal(storage.size, status === 500 ? 1 : 0);
+  }
+});
+
+test("storage is isolated by server and sessionKey and can be disabled", async t => {
+  const storage = browserStorage(t);
+  const { app } = create();
+  await app.login({ user: "a", password: "pw" });
+  for (const config of [{ url: "https://other.example" }, { sessionKey: "other" }, { session: false }]) {
+    const { app: other } = create(async () => { assert.fail("Must not restore another session"); }, config);
+    await other.init();
+    assert.equal(other.getToken(), null);
+    await other.logout();
+    assert.equal(storage.size, 1);
+  }
+  const { app: disabled } = create(undefined, { session: false });
+  await disabled.login({ user: "b", password: "pw" });
+  assert.equal(storage.size, 1);
+});
+
+test("logout prevents an in-flight restoration from signing back in", async t => {
+  const storage = browserStorage(t);
+  const { app } = create();
+  await app.login({ user: "a", password: "pw" });
+  let finish;
+  const { app: reloaded } = create(() => new Promise(resolve => { finish = resolve; }));
+  const restoring = reloaded.init();
+  await reloaded.logout();
+  finish({ key: "account", user: "a", realm: "ccm" });
+  await restoring;
+  assert.equal(reloaded.isLoggedIn(), false);
+  assert.equal(storage.size, 0);
+});
+
+test("blocked sessionStorage does not prevent login or logout", async t => {
+  browserStorage(t);
+  Object.defineProperty(globalThis, "sessionStorage", { configurable: true, get() { throw new DOMException("Blocked", "SecurityError"); } });
+  const { app } = create();
+  await app.init();
+  await app.login({ user: "a", password: "pw" });
+  assert.equal(app.getToken(), "jwt");
+  await app.logout();
+  assert.equal(app.getToken(), null);
+});

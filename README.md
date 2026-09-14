@@ -88,10 +88,25 @@ Inline SVG can inherit the text color through `currentColor`; image files keep
 their own colors. The defaults are inline SVG and need no extra image requests.
 Inline markup is trusted developer configuration, not sanitized user input.
 
-The session exists only in this component instance's memory. Reloading the page
-logs out. No passwords or JWTs are written to browser storage. Token expiration is
-verified by the server; `isLoggedIn()` does not validate the JWT. Logout discards
-the local token and does not revoke a previously issued JWT. Use HTTPS in deployment.
+By default, `session: true` saves only the CCM JWT in `sessionStorage`, so login
+survives reloads in the same tab. During `init()`, the component validates it through
+the server's `{ session: true, token }` endpoint and restores metadata from that
+response. Restoration does not emit a new `login` event or extend the token lifetime.
+Expired/invalid tokens are removed; temporary network/server failures leave the
+saved token available for a later reload but do not sign in the instance.
+
+Set `session: false` for memory-only authentication. Storage keys include the server
+URL and `sessionKey` (default: `"default"`). Use distinct session keys to isolate
+independent logins on the same server. Instances sharing a key use the same saved
+session on initialization; already-running instances are not synchronized.
+Browser storage belongs to the embedding page's origin, not the component's host.
+It is accessible to JavaScript on that origin. Blocked storage falls back to memory.
+Passwords, Google ID tokens and GUI state are never saved.
+
+Logout and successful account deletion remove the saved token. Token expiration is
+verified by the server; `isLoggedIn()` only checks the in-memory session.
+Logout does not revoke a previously issued JWT. Use HTTPS in deployment.
+Restart the updated ccm-server to enable the session endpoint.
 Google popup login is described in [auth/google/GOOGLE-SETUP.md](auth/google/GOOGLE-SETUP.md).
 MIA OIDC and dataset permissions are separate future steps.
 
