@@ -126,7 +126,6 @@ export const component = {
       const savedToken = sessionStorageAccess("getItem");
       if (!savedToken) return;
       const version = ++requestVersion;
-      this.gui.busy = true;
       try {
         const result = await this.ccm.load({
           url: this.url,
@@ -159,8 +158,6 @@ export const component = {
           error.status === 401 || error.status === 403
             ? this.labels.sessionExpired
             : this.labels.failed;
-      } finally {
-        if (version === requestVersion) this.gui.busy = false;
       }
     };
 
@@ -178,7 +175,7 @@ export const component = {
       try {
         const server = new URL(this.url).href;
         const key = `ccm-user-session:${JSON.stringify([server, this.realm])}`;
-        return globalThis.sessionStorage?.[method](key, value) ?? null;
+        return sessionStorage[method](key, value) ?? null;
       } catch {
         return null;
       }
