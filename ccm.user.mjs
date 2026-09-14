@@ -4,13 +4,13 @@ export const component = {
   config: {
     // TODO: lang
 
-    // Absolute server API URL for registration, login, session validation and account deletion
+    // Absolute server API URL for registration, login, account deletion
     url: "http://localhost:8080",
 
     // Independent user area on the server; also separates saved sessions
     realm: "ccm",
 
-    // Keep the CCM token across reloads in this tab; logout remains local
+    // Keep the CCM token and user metadata across reloads in this tab; logout remains local
     session: true,
 
     // UI utilities (templating + event binding)
@@ -121,43 +121,25 @@ export const component = {
     // Incrementing invalidates older responses; it does not abort the HTTP request.
     let requestVersion = 0;
 
-    /** Restores only sessions validated by the server, before the first start. */
+    /** Restores cached metadata; the next authenticated request validates the session. */
     this.init = async () => {
-      const savedToken = sessionStorageAccess("getItem");
-      if (!savedToken) return;
-      const version = ++requestVersion;
+      const saved = sessionStorageAccess("getItem");
+      if (!saved) return;
       try {
-        const result = await this.ccm.load({
-          url: this.url,
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          params: { session: true, token: savedToken },
-        });
-        if (version !== requestVersion) return;
-        if (
-          !result ||
-          typeof result.key !== "string" ||
-          !result.key ||
-          typeof result.user !== "string" ||
-          typeof result.realm !== "string" ||
-          result.realm !== this.realm ||
-          typeof result.provider !== "string"
-        )
+        const session = JSON.parse(saved);
+        if (!session || typeof session.token !== "string" || !session.token ||
+            typeof session.key !== "string" || !session.key ||
+            typeof session.user !== "string" || session.realm !== this.realm ||
+            typeof session.provider !== "string" || !session.provider)
           throw new Error(this.labels.invalidAuthenticationResponse);
-        token = savedToken;
-        this.state.key = result.key;
-        this.state.user = result.user;
-        this.state.realm = result.realm;
-        this.state.provider = result.provider;
-      } catch (error) {
-        if (version !== requestVersion) return;
-        // A network/server failure does not prove that the saved token is invalid.
-        if (error.status === 401 || error.status === 403)
-          sessionStorageAccess("removeItem");
-        this.gui.message =
-          error.status === 401 || error.status === 403
-            ? this.labels.sessionExpired
-            : this.labels.failed;
+        token = session.token;
+        this.state.key = session.key;
+        this.state.user = session.user;
+        this.state.realm = session.realm;
+        this.state.provider = session.provider;
+      } catch {
+        // Discard malformed entries, including the old token-only storage format.
+        sessionStorageAccess("removeItem");
       }
     };
 
@@ -166,9 +148,9 @@ export const component = {
      * Browser storage may be unavailable; authentication still works in memory.
      *
      * @param {"getItem"|"setItem"|"removeItem"} method - Storage operation to perform
-     * @param {string} [value] - CCM token to save; required only for setItem
-     * @returns {string|null} Saved token for getItem, otherwise null; also null
-     *   when no token exists, persistence is disabled or storage access fails
+     * @param {string} [value] - Serialized session to save; required only for setItem
+     * @returns {string|null} Serialized session for getItem, otherwise null; also null
+     *   when no session exists, persistence is disabled or storage access fails
      */
     const sessionStorageAccess = (method, value) => {
       if (!this.session) return null;
@@ -329,7 +311,6 @@ export const component = {
         const result = await this.ccm.load({
           url: this.url,
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           params,
         });
         if (version !== requestVersion)
@@ -351,7 +332,10 @@ export const component = {
         this.state.user = provider === "ccm" ? credentials.user : result.user;
         this.state.realm = this.realm;
         this.state.provider = provider;
-        sessionStorageAccess("setItem", token);
+        sessionStorageAccess("setItem", JSON.stringify({
+          token, key: this.state.key, user: this.state.user,
+          realm: this.state.realm, provider: this.state.provider,
+        }));
       } catch (error) {
         if (version === requestVersion) {
           if (provider !== "ccm") this.gui.message = this.labels.googleFailed;
@@ -398,7 +382,6 @@ export const component = {
         const result = await this.ccm.load({
           url: this.url,
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           params: { deleteAccount: true, token },
         });
         if (result !== true)

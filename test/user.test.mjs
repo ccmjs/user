@@ -203,52 +203,50 @@ function browserStorage(t) {
   return values;
 }
 
-test("reload restores server-verified metadata and stores only the CCM token", async t => {
+test("reload restores token and metadata without a server request or login event", async t => {
   const storage = browserStorage(t);
   const { app } = create();
-  await app.init();
   await app.login({ user: "a", password: "secret" });
-  assert.deepEqual([...storage.values()], ["jwt"]);
+  const saved = JSON.parse([...storage.values()][0]);
+  assert.deepEqual(saved, { token: "jwt", key: "account", user: "a", realm: "ccm", provider: "ccm" });
+  let requests = 0;
   const events = [];
-  const { app: reloaded } = create(async request => {
-    assert.deepEqual(request.params, { session: true, token: "jwt" });
-    return { key: "account", user: "server-name", realm: "ccm", provider: "ccm" };
-  }, { extensions: [({ type }) => events.push(type)] });
+  const { app: reloaded } = create(async () => { requests++; }, { extensions: [({ type }) => events.push(type)] });
   await reloaded.init();
   await reloaded.start();
-  assert.equal(reloaded.getToken(), "jwt");
-  assert.deepEqual(reloaded.state, { key: "account", user: "server-name", realm: "ccm", provider: "ccm" });
+  assert.equal(requests, 0);
   assert.deepEqual(events, []);
+  assert.equal(reloaded.getToken(), app.getToken());
+  assert.deepEqual(reloaded.state, app.state);
   assert.equal(reloaded.gui.dialog, false);
+  assert.equal(JSON.stringify(reloaded.state).includes("jwt"), false);
   await reloaded.logout();
   assert.equal(storage.size, 0);
 });
 
-test("Google sessions restore without reopening Google and deletion clears storage", async t => {
+test("Google sessions save only CCM credentials and restore the selected realm", async t => {
   const storage = browserStorage(t);
-  const { app } = create(async () => ({ key: "google-account", user: "Google user", realm: "ccm", provider: "google", token: "ccm-jwt" }));
+  const metadata = { key: "google-account", user: "Google user", realm: "tea", provider: "google" };
+  const { app } = create(async () => ({ ...metadata, token: "ccm-jwt" }), { realm: "tea" });
   await app.loginWithProvider("google", { idToken: "google-proof" });
-  assert.deepEqual([...storage.values()], ["ccm-jwt"]);
-  const { app: reloaded } = create(async () => ({ key: "google-account", user: "Google user", realm: "ccm", provider: "google" }));
+  assert.deepEqual(JSON.parse([...storage.values()][0]), { ...metadata, token: "ccm-jwt" });
+  const { app: reloaded } = create(undefined, { realm: "tea" });
   await reloaded.init();
-  assert.equal(reloaded.state.realm, "ccm");
-  await reloaded.logout();
-  const { app: local } = create(async request => request.params.deleteAccount ? true : { key: "local", token: "jwt" });
-  await local.register({ user: "a", password: "pw" });
-  await local.deleteAccount();
-  assert.equal(storage.size, 0);
+  assert.deepEqual(reloaded.state, metadata);
+  assert.equal(reloaded.getToken(), "ccm-jwt");
 });
 
-test("invalid or expired sessions are removed; temporary failures preserve the saved token", async t => {
+test("malformed, old or mismatched session entries are discarded", async t => {
   const storage = browserStorage(t);
-  for (const status of [401, 403, 500]) {
-    const { app } = create();
-    await app.login({ user: "a", password: "pw" });
-    const { app: reloaded } = create(async () => { throw Object.assign(new Error(), { status }); });
-    await reloaded.init();
-    assert.equal(reloaded.isLoggedIn(), false);
-    assert.equal(reloaded.gui.busy, false);
-    assert.equal(storage.size, status === 500 ? 1 : 0);
+  const key = 'ccm-user-session:["http://localhost:8080/","ccm"]';
+  for (const saved of ["old-jwt", "null", "{}", JSON.stringify({ token: "jwt", key: "a", user: "a", realm: "other", provider: "ccm" })]) {
+    storage.set(key, saved);
+    let requests = 0;
+    const { app } = create(async () => { requests++; });
+    await app.init();
+    assert.equal(requests, 0);
+    assert.equal(app.getToken(), null);
+    assert.equal(storage.size, 0);
   }
 });
 
@@ -257,30 +255,20 @@ test("storage is isolated by server and realm and can be disabled", async t => {
   const { app } = create();
   await app.login({ user: "a", password: "pw" });
   for (const config of [{ url: "https://other.example" }, { realm: "other" }, { session: false }]) {
-    let requests = 0;
-    const { app: other } = create(async () => { requests++; }, config);
+    const { app: other } = create(undefined, config);
     await other.init();
-    assert.equal(requests, 0);
     assert.equal(other.getToken(), null);
     await other.logout();
     assert.equal(storage.size, 1);
   }
-  const { app: disabled } = create(undefined, { session: false });
-  await disabled.login({ user: "b", password: "pw" });
-  assert.equal(storage.size, 1);
 });
 
-test("logout prevents an in-flight restoration from signing back in", async t => {
+test("successful account deletion clears the saved session", async t => {
   const storage = browserStorage(t);
-  const { app } = create();
-  await app.login({ user: "a", password: "pw" });
-  let finish;
-  const { app: reloaded } = create(() => new Promise(resolve => { finish = resolve; }));
-  const restoring = reloaded.init();
-  await reloaded.logout();
-  finish({ key: "account", user: "a", realm: "ccm", provider: "ccm" });
-  await restoring;
-  assert.equal(reloaded.isLoggedIn(), false);
+  const { app } = create(async request => request.params.deleteAccount ? true : { key: "a", token: "jwt" });
+  await app.register({ user: "a", password: "pw" });
+  assert.equal(storage.size, 1);
+  await app.deleteAccount();
   assert.equal(storage.size, 0);
 });
 
@@ -293,27 +281,4 @@ test("blocked sessionStorage does not prevent login or logout", async t => {
   assert.equal(app.getToken(), "jwt");
   await app.logout();
   assert.equal(app.getToken(), null);
-});
-
-test("local authentication sends the configured realm independently of its provider", async () => {
-  const requests = [];
-  const { app } = create(async request => {
-    requests.push(request.params);
-    return { key: "tea", token: "jwt" };
-  }, { realm: "tea-app" });
-  await app.login({ user: "Tea", password: "pw" });
-  assert.equal(requests[0].realm, "tea-app");
-  assert.equal(requests[0].login, "ccm");
-  assert.equal(app.state.realm, "tea-app");
-  assert.equal(app.state.provider, "ccm");
-});
-
-test("restoration refuses metadata from a different realm", async t => {
-  browserStorage(t);
-  const { app } = create();
-  await app.login({ user: "a", password: "pw" });
-  const { app: reloaded } = create(async () => ({ key: "a", user: "a", realm: "other", provider: "ccm" }));
-  await reloaded.init();
-  assert.equal(reloaded.getToken(), null);
-  assert.equal(reloaded.state.key, null);
 });

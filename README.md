@@ -89,12 +89,14 @@ Inline SVG can inherit the text color through `currentColor`; image files keep
 their own colors. The defaults are inline SVG and need no extra image requests.
 Inline markup is trusted developer configuration, not sanitized user input.
 
-By default, `session: true` saves only the CCM JWT in `sessionStorage`, so login
-survives reloads in the same tab. During `init()`, the component validates it through
-the server's `{ session: true, token }` endpoint and restores metadata from that
-response. Restoration does not emit a new `login` event or extend the token lifetime.
-Expired/invalid tokens are removed; temporary network/server failures leave the
-saved token available for a later reload but do not sign in the instance.
+By default, `session: true` saves the CCM JWT and public user metadata in
+`sessionStorage`, so login survives reloads in the same tab. During `init()`, the
+component restores this cached session locally, without a server request or a new
+`login` event. Malformed entries and the old token-only format are discarded.
+The displayed login is provisional: token expiration and account deletion are
+checked on the next authenticated server request. A datastore configured with this
+user component then performs the framework's one re-login attempt on 401/403.
+Without a server request, an invalid session may still appear logged in.
 
 Set `session: false` for memory-only authentication. Storage keys include the server
 URL and `realm` (default: `"ccm"`). Use distinct realms to isolate
@@ -107,7 +109,6 @@ Passwords, Google ID tokens and GUI state are never saved.
 Logout and successful account deletion remove the saved token. Token expiration is
 verified by the server; `isLoggedIn()` only checks the in-memory session.
 Logout does not revoke a previously issued JWT. Use HTTPS in deployment.
-Restart the updated ccm-server to enable the session endpoint.
 Google popup login is described in [auth/google/GOOGLE-SETUP.md](auth/google/GOOGLE-SETUP.md).
 MIA OIDC remains a separate future step. Dataset permissions are enforced by the server.
 
