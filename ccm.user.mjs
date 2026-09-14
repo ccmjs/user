@@ -126,15 +126,9 @@ export const component = {
       try {
         const session = JSON.parse(saved);
         if (
-          !session ||
+          !isValidIdentity(session) ||
           typeof session.token !== "string" ||
-          !session.token ||
-          typeof session.key !== "string" ||
-          !session.key ||
-          typeof session.user !== "string" ||
-          session.realm !== this.realm ||
-          typeof session.provider !== "string" ||
-          !session.provider
+          !session.token
         )
           throw new Error(this.labels.invalidAuthenticationResponse);
         token = session.token;
@@ -443,25 +437,21 @@ export const component = {
         });
         if (version !== requestVersion)
           throw new DOMException(this.labels.loginCancelled, "AbortError");
+        const identity = {
+          key: result?.key,
+          user: provider === "ccm" ? credentials.user : result?.user,
+          realm: provider === "ccm" ? this.realm : result?.realm,
+          provider: provider === "ccm" ? provider : result?.provider,
+        };
         if (
-          !result ||
-          typeof result.key !== "string" ||
-          !result.key ||
-          typeof result.token !== "string" ||
-          !result.token ||
-          (provider !== "ccm" &&
-            (typeof result.user !== "string" ||
-              result.realm !== this.realm ||
-              result.provider !== provider))
+          !isValidIdentity(identity) ||
+          identity.provider !== provider ||
+          typeof result?.token !== "string" ||
+          !result.token
         )
           throw new Error(this.labels.invalidAuthenticationResponse);
         token = result.token;
-        this.state = {
-          key: result.key,
-          user: provider === "ccm" ? credentials.user : result.user,
-          realm: this.realm,
-          provider,
-        };
+        this.state = identity;
         sessionStorageAccess(
           "setItem",
           JSON.stringify({
@@ -520,6 +510,20 @@ export const component = {
       render();
       return promise;
     };
+
+    /**
+     * Checks the shape of user metadata and its realm, not the token's validity.
+     *
+     * @param {unknown} value - User metadata, e.g. this.state or a saved session
+     * @returns {boolean} Whether all required identity fields are valid
+     */
+    const isValidIdentity = (value) =>
+      this.ccm.helper.isDataset(value) &&
+      typeof value.key === "string" &&
+      typeof value.user === "string" &&
+      value.realm === this.realm &&
+      typeof value.provider === "string" &&
+      value.provider !== "";
 
     /** Rejects waiting callers without changing an existing authenticated session. */
     const cancelPendingLogin = () => {

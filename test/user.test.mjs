@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { component } from "../ccm.user.mjs";
+import { helper } from "./support/framework.mjs";
 
 function create(load = async () => ({ key: "account", token: "jwt" }), config = {}) {
   let view;
   const app = Object.assign(new component.Instance(), component.config, { registration: true }, config, {
-    ccm: { load },
+    ccm: { load, helper },
     views: { main: app => { view = app.gui; return app.gui; } },
     ui: { render: () => {} },
   });
@@ -225,7 +226,7 @@ test("reload restores token and metadata without a server request or login event
 
 test("Google sessions save only CCM credentials and restore the selected realm", async t => {
   const storage = browserStorage(t);
-  const metadata = { key: "google-account", user: "Google user", realm: "tea", provider: "google" };
+  const metadata = { key: "google_account", user: "Google user", realm: "tea", provider: "google" };
   const { app } = create(async () => ({ ...metadata, token: "ccm-jwt" }), { realm: "tea" });
   await app.login({ idToken: "google-proof" }, "google");
   assert.deepEqual(JSON.parse([...storage.values()][0]), { ...metadata, token: "ccm-jwt" });
@@ -295,4 +296,19 @@ test("views handle null state before login and after logout", async () => {
   assert.equal(app.state, null);
   assert.match(views.trigger(app), /Sign in/);
   assert.match(views.dialog(app), /name="password"/);
+});
+
+test("identity keys must be single valid CCM keys on login and restoration", async t => {
+  const storage = browserStorage(t);
+  const storageKey = 'ccm-user-session:["http://localhost:8080/","ccm"]';
+  assert.equal(helper.isKey(["app", "user"]), true);
+  for (const key of [["app", "user"], "", "1user", "User", "user-name", "a".repeat(33)]) {
+    const { app } = create(async () => ({ key, token: "jwt" }));
+    await assert.rejects(app.login({ user: "a", password: "pw" }), /Invalid authentication response/);
+    assert.equal(app.state, null);
+    storage.set(storageKey, JSON.stringify({ key, token: "jwt", user: "a", realm: "ccm", provider: "ccm" }));
+    await app.init();
+    assert.equal(app.state, null);
+    assert.equal(storage.size, 0);
+  }
 });
