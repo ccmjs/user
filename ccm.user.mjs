@@ -3,15 +3,15 @@ export const component = {
   ccm: "././libs/ccmjs/ccm.js",
   config: {
     // TODO: lang
-    // TODO: sounds
 
-    // Server API for registration, login, session validation and account deletion
+    // Absolute server API URL for registration, login, session validation and account deletion
     url: "http://localhost:8080",
+
+    // Independent user area on the server; also separates saved sessions
+    realm: "ccm",
 
     // Keep the CCM token across reloads in this tab; logout remains local
     session: true,
-    // Instances using the same server and key share the saved session
-    sessionKey: "default",
 
     // UI utilities (templating + event binding)
     ui: ["ccm.load", "././libs/ccm-ui/ccm-ui.mjs"],
@@ -29,7 +29,7 @@ export const component = {
     // },
 
     // Whether the registration form is available
-    registration: true,
+    // registration: true,
 
     // Extension points
     extensions: [],
@@ -102,6 +102,7 @@ export const component = {
       key: null,
       user: null,
       realm: null,
+      provider: null,
     };
 
     // Transient GUI state, separate from the domain data
@@ -134,31 +135,49 @@ export const component = {
           params: { session: true, token: savedToken },
         });
         if (version !== requestVersion) return;
-        if (!result || typeof result.key !== "string" || !result.key ||
-          typeof result.user !== "string" || typeof result.realm !== "string" || !result.realm)
+        if (
+          !result ||
+          typeof result.key !== "string" ||
+          !result.key ||
+          typeof result.user !== "string" ||
+          typeof result.realm !== "string" ||
+          result.realm !== this.realm ||
+          typeof result.provider !== "string"
+        )
           throw new Error(this.labels.invalidAuthenticationResponse);
         token = savedToken;
         this.state.key = result.key;
         this.state.user = result.user;
         this.state.realm = result.realm;
+        this.state.provider = result.provider;
       } catch (error) {
         if (version !== requestVersion) return;
         // A network/server failure does not prove that the saved token is invalid.
         if (error.status === 401 || error.status === 403)
           sessionStorageAccess("removeItem");
-        this.gui.message = error.status === 401 || error.status === 403
-          ? this.labels.sessionExpired : this.labels.failed;
+        this.gui.message =
+          error.status === 401 || error.status === 403
+            ? this.labels.sessionExpired
+            : this.labels.failed;
       } finally {
         if (version === requestVersion) this.gui.busy = false;
       }
     };
 
-    /** Browser storage may be unavailable; authentication still works in memory. */
+    /**
+     * Accesses the saved session for this server and realm.
+     * Browser storage may be unavailable; authentication still works in memory.
+     *
+     * @param {"getItem"|"setItem"|"removeItem"} method - Storage operation to perform
+     * @param {string} [value] - CCM token to save; required only for setItem
+     * @returns {string|null} Saved token for getItem, otherwise null; also null
+     *   when no token exists, persistence is disabled or storage access fails
+     */
     const sessionStorageAccess = (method, value) => {
       if (!this.session) return null;
       try {
-        const server = new URL(this.url, globalThis.location?.href).href;
-        const key = `ccm-user-session:${JSON.stringify([server, this.sessionKey])}`;
+        const server = new URL(this.url).href;
+        const key = `ccm-user-session:${JSON.stringify([server, this.realm])}`;
         return globalThis.sessionStorage?.[method](key, value) ?? null;
       } catch {
         return null;
@@ -178,7 +197,7 @@ export const component = {
      * Logs in with credentials, or waits for an interactive login.
      *
      * @param {{user: string, password: string}} [credentials]
-     * @returns {Promise<{key: string, user: string, realm: string}>} User metadata
+     * @returns {Promise<{key: string, user: string, realm: string, provider: string}>} User metadata
      */
     this.login = (credentials) => {
       if (token)
@@ -186,6 +205,7 @@ export const component = {
           key: this.state.key,
           user: this.state.user,
           realm: this.state.realm,
+          provider: this.state.provider,
         });
       return credentials
         ? authenticate("login", credentials)
@@ -196,7 +216,7 @@ export const component = {
      * Registers and logs in a local user, or opens the registration form.
      *
      * @param {{user: string, password: string}} [credentials]
-     * @returns {Promise<{key: string, user: string, realm: string}>} User metadata
+     * @returns {Promise<{key: string, user: string, realm: string, provider: string}>} User metadata
      */
     this.register = (credentials) => {
       if (!this.registration)
@@ -206,6 +226,7 @@ export const component = {
           key: this.state.key,
           user: this.state.user,
           realm: this.state.realm,
+          provider: this.state.provider,
         });
       return credentials
         ? authenticate("register", credentials)
@@ -227,6 +248,7 @@ export const component = {
       this.state.key = null;
       this.state.user = null;
       this.state.realm = null;
+      this.state.provider = null;
       this.gui.username = "";
       this.gui.message = "";
       this.gui.mode = "login";
@@ -306,6 +328,7 @@ export const component = {
                 login: provider,
                 credentials,
               };
+        params.realm = this.realm;
         const result = await this.ccm.load({
           url: this.url,
           method: "POST",
@@ -321,13 +344,16 @@ export const component = {
           typeof result.token !== "string" ||
           !result.token ||
           (provider !== "ccm" &&
-            (typeof result.user !== "string" || result.realm !== provider))
+            (typeof result.user !== "string" ||
+              result.realm !== this.realm ||
+              result.provider !== provider))
         )
           throw new Error(this.labels.invalidAuthenticationResponse);
         token = result.token;
         this.state.key = result.key;
         this.state.user = provider === "ccm" ? credentials.user : result.user;
-        this.state.realm = provider;
+        this.state.realm = this.realm;
+        this.state.provider = provider;
         sessionStorageAccess("setItem", token);
       } catch (error) {
         if (version === requestVersion) {
@@ -350,6 +376,7 @@ export const component = {
         key: this.state.key,
         user: this.state.user,
         realm: this.state.realm,
+        provider: this.state.provider,
       };
       const waiting = pendingLogin;
       pendingLogin = null;

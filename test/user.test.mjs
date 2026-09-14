@@ -4,7 +4,7 @@ import { component } from "../ccm.user.mjs";
 
 function create(load = async () => ({ key: "account", token: "jwt" }), config = {}) {
   let view;
-  const app = Object.assign(new component.Instance(), component.config, config, {
+  const app = Object.assign(new component.Instance(), component.config, { registration: true }, config, {
     ccm: { load },
     views: { main: app => { view = app.gui; return app.gui; } },
     ui: { render: () => {} },
@@ -29,13 +29,13 @@ test("register, token access, metadata and logout", async () => {
   }, { extensions: [event => events.push(event.type)] });
   assert.equal(app.getToken(), null);
   const value = await app.register({ user: "André", password: "secret" });
-  assert.deepEqual(requests[0].params, { register: { user: "André", password: "secret" } });
+  assert.deepEqual(requests[0].params, { register: { user: "André", password: "secret" }, realm: "ccm" });
   assert.equal(app.getToken(), "jwt");
   assert.equal(app.state.key, "account");
   assert.equal(app.isLoggedIn(), true);
-  assert.deepEqual(value, { key: "account", user: "André", realm: "ccm" });
+  assert.deepEqual(value, { key: "account", user: "André", realm: "ccm", provider: "ccm" });
   assert.deepEqual(JSON.parse(JSON.stringify(app.state)), {
-    key: "account", user: "André", realm: "ccm",
+    key: "account", user: "André", realm: "ccm", provider: "ccm",
   });
   value.key = "changed";
   assert.equal(app.state.key, "account");
@@ -212,12 +212,12 @@ test("reload restores server-verified metadata and stores only the CCM token", a
   const events = [];
   const { app: reloaded } = create(async request => {
     assert.deepEqual(request.params, { session: true, token: "jwt" });
-    return { key: "account", user: "server-name", realm: "ccm" };
+    return { key: "account", user: "server-name", realm: "ccm", provider: "ccm" };
   }, { extensions: [({ type }) => events.push(type)] });
   await reloaded.init();
   await reloaded.start();
   assert.equal(reloaded.getToken(), "jwt");
-  assert.deepEqual(reloaded.state, { key: "account", user: "server-name", realm: "ccm" });
+  assert.deepEqual(reloaded.state, { key: "account", user: "server-name", realm: "ccm", provider: "ccm" });
   assert.deepEqual(events, []);
   assert.equal(reloaded.gui.dialog, false);
   await reloaded.logout();
@@ -226,12 +226,12 @@ test("reload restores server-verified metadata and stores only the CCM token", a
 
 test("Google sessions restore without reopening Google and deletion clears storage", async t => {
   const storage = browserStorage(t);
-  const { app } = create(async () => ({ key: "google-account", user: "Google user", realm: "google", token: "ccm-jwt" }));
+  const { app } = create(async () => ({ key: "google-account", user: "Google user", realm: "ccm", provider: "google", token: "ccm-jwt" }));
   await app.loginWithProvider("google", { idToken: "google-proof" });
   assert.deepEqual([...storage.values()], ["ccm-jwt"]);
-  const { app: reloaded } = create(async () => ({ key: "google-account", user: "Google user", realm: "google" }));
+  const { app: reloaded } = create(async () => ({ key: "google-account", user: "Google user", realm: "ccm", provider: "google" }));
   await reloaded.init();
-  assert.equal(reloaded.state.realm, "google");
+  assert.equal(reloaded.state.realm, "ccm");
   await reloaded.logout();
   const { app: local } = create(async request => request.params.deleteAccount ? true : { key: "local", token: "jwt" });
   await local.register({ user: "a", password: "pw" });
@@ -252,13 +252,15 @@ test("invalid or expired sessions are removed; temporary failures preserve the s
   }
 });
 
-test("storage is isolated by server and sessionKey and can be disabled", async t => {
+test("storage is isolated by server and realm and can be disabled", async t => {
   const storage = browserStorage(t);
   const { app } = create();
   await app.login({ user: "a", password: "pw" });
-  for (const config of [{ url: "https://other.example" }, { sessionKey: "other" }, { session: false }]) {
-    const { app: other } = create(async () => { assert.fail("Must not restore another session"); }, config);
+  for (const config of [{ url: "https://other.example" }, { realm: "other" }, { session: false }]) {
+    let requests = 0;
+    const { app: other } = create(async () => { requests++; }, config);
     await other.init();
+    assert.equal(requests, 0);
     assert.equal(other.getToken(), null);
     await other.logout();
     assert.equal(storage.size, 1);
@@ -276,7 +278,7 @@ test("logout prevents an in-flight restoration from signing back in", async t =>
   const { app: reloaded } = create(() => new Promise(resolve => { finish = resolve; }));
   const restoring = reloaded.init();
   await reloaded.logout();
-  finish({ key: "account", user: "a", realm: "ccm" });
+  finish({ key: "account", user: "a", realm: "ccm", provider: "ccm" });
   await restoring;
   assert.equal(reloaded.isLoggedIn(), false);
   assert.equal(storage.size, 0);
@@ -291,4 +293,27 @@ test("blocked sessionStorage does not prevent login or logout", async t => {
   assert.equal(app.getToken(), "jwt");
   await app.logout();
   assert.equal(app.getToken(), null);
+});
+
+test("local authentication sends the configured realm independently of its provider", async () => {
+  const requests = [];
+  const { app } = create(async request => {
+    requests.push(request.params);
+    return { key: "tea", token: "jwt" };
+  }, { realm: "tea-app" });
+  await app.login({ user: "Tea", password: "pw" });
+  assert.equal(requests[0].realm, "tea-app");
+  assert.equal(requests[0].login, "ccm");
+  assert.equal(app.state.realm, "tea-app");
+  assert.equal(app.state.provider, "ccm");
+});
+
+test("restoration refuses metadata from a different realm", async t => {
+  browserStorage(t);
+  const { app } = create();
+  await app.login({ user: "a", password: "pw" });
+  const { app: reloaded } = create(async () => ({ key: "a", user: "a", realm: "other", provider: "ccm" }));
+  await reloaded.init();
+  assert.equal(reloaded.getToken(), null);
+  assert.equal(reloaded.state.key, null);
 });

@@ -11,7 +11,8 @@ Start ccm-server on port 8080 and open `http://localhost:8000/`.
 
 The demo loads the bundled `libs/ccmjs/ccm.js`. The component declares the public
 framework URL and resolves its views and CSS relative to its own module URL.
-Change `url` in the demo to use another server.
+The page loads `demo` from `resources/configs.mjs`, enabling registration and Google
+authentication. Change `url` there to use another server.
 
 ## Usage
 
@@ -96,8 +97,8 @@ Expired/invalid tokens are removed; temporary network/server failures leave the
 saved token available for a later reload but do not sign in the instance.
 
 Set `session: false` for memory-only authentication. Storage keys include the server
-URL and `sessionKey` (default: `"default"`). Use distinct session keys to isolate
-independent logins on the same server. Instances sharing a key use the same saved
+URL and `realm` (default: `"ccm"`). Use distinct realms to isolate
+independent user areas on the same server. Instances sharing a realm use the same saved
 session on initialization; already-running instances are not synchronized.
 Browser storage belongs to the embedding page's origin, not the component's host.
 It is accessible to JavaScript on that origin. Blocked storage falls back to memory.
@@ -108,7 +109,7 @@ verified by the server; `isLoggedIn()` only checks the in-memory session.
 Logout does not revoke a previously issued JWT. Use HTTPS in deployment.
 Restart the updated ccm-server to enable the session endpoint.
 Google popup login is described in [auth/google/GOOGLE-SETUP.md](auth/google/GOOGLE-SETUP.md).
-MIA OIDC and dataset permissions are separate future steps.
+MIA OIDC remains a separate future step. Dataset permissions are enforced by the server.
 
 ## Tests
 
@@ -128,12 +129,12 @@ connect the templates to `instance.events`, following the Quiz component.
 Dynamic text and quoted attribute values are escaped before interpolation.
 
 Configuration defines component options. `app.state` contains only domain data:
-`key`, `user` and `realm`. The separate `app.gui` object contains transient GUI
+`key`, `user`, `realm` and `provider`. The separate `app.gui` object contains transient GUI
 state: `mode`, `busy`, `message`, `username`, `cancellable` and `dialog`. Views read
 from both objects. Serializing `state` excludes GUI state; restoring GUI state
 through routing or browser storage is a separate, explicit concern.
 After authentication, `state.key`, `state.user` and `state.realm` contain the
-user metadata; after logout all three are `null`. Only the token, the pending authentication promise
+user metadata; after logout all metadata fields are `null`. Only the token, the pending authentication promise
 and the request version counter remain private. Read the token through `getToken()`
 and user metadata directly through `state.key`, `state.user` and `state.realm`.
 
@@ -178,3 +179,18 @@ waiting promise, while a failed submission keeps the form available for retry.
 Logout and dialog cancellation advance `requestVersion`. Responses from older
 requests cannot restore a discarded session or overwrite a newer form state.
 This invalidates results locally; it does not cancel the request on the server.
+
+
+## Separate user areas
+
+Set `realm: "tea-app"` alongside the absolute server `url` to use accounts in
+`__users-tea-app`. The default is `realm: "ccm"` (`__users-ccm`). Realm names use
+1–32 lowercase letters, digits, underscores or hyphens, beginning with a letter.
+`state.realm` identifies this user area; `state.provider` identifies the sign-in
+method (`ccm` or `google`). Google can be used within any realm.
+`sessionKey` is replaced by `realm`; existing browser sessions require one new login.
+Existing server accounts require the migration documented in the server README.
+
+A dataset's owner identity is `${user.state.realm}:${user.state.key}`. When creating
+a protected dataset, pass `_` with the desired read/write/delete grants; the server
+sets its owner from your JWT. Public datasets without `_` cannot be claimed later.

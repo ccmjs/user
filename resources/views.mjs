@@ -60,12 +60,12 @@ function profile(app) {
     <dl class="profile-data">
       <dt>${escape(labels.user)}</dt><dd>${escape(state.user)}</dd>
       <dt>${escape(labels.userId)}</dt><dd class="user-id">${escape(state.key)}</dd>
-      <dt>${escape(labels.provider)}</dt><dd>${escape(state.realm)}</dd>
+      <dt>${escape(labels.provider)}</dt><dd>${escape(state.provider)}</dd>
     </dl>
     <button type="button" class="primary" data-on-click="logout" autofocus>
       ${escape(labels.logout)}
     </button>
-    ${state.realm === "ccm" && app.ui.html`<footer class="account-actions">
+    ${state.provider === "ccm" && app.ui.html`<footer class="account-actions">
       <button type="button" class="delete-link" data-on-click="requestDelete">
         ${escape(labels.deleteAccount)}
       </button>

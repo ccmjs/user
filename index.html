@@ -6,7 +6,7 @@
   <title>ccmjs User Demo</title>
   <script src="./libs/ccmjs/ccm.js"></script>
   <script type="module">
-    await ccm.start("./ccm.user.mjs", {}, document.body);
+    await ccm.start("./ccm.user.mjs", ["ccm.load", "././resources/configs.mjs#demo"], document.body);
   </script>
 </head>
 <body></body>
