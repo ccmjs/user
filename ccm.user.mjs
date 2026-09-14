@@ -97,13 +97,11 @@ export const component = {
     },
   },
   Instance: function () {
-    // Public domain data; credentials remain private
-    this.state = {
-      key: null,
-      user: null,
-      realm: null,
-      provider: null,
-    };
+    /**
+     * Public user metadata, or `null` when logged out. Credentials remain private.
+     * @type {UserIdentity|null}
+     */
+    this.state = null;
 
     // Transient GUI state, separate from the domain data
     this.gui = {
@@ -140,10 +138,12 @@ export const component = {
         )
           throw new Error(this.labels.invalidAuthenticationResponse);
         token = session.token;
-        this.state.key = session.key;
-        this.state.user = session.user;
-        this.state.realm = session.realm;
-        this.state.provider = session.provider;
+        this.state = {
+          key: session.key,
+          user: session.user,
+          realm: session.realm,
+          provider: session.provider,
+        };
       } catch {
         // Discard malformed entries, including the old token-only storage format.
         sessionStorageAccess("removeItem");
@@ -156,19 +156,14 @@ export const component = {
     /**
      * Logs in with credentials, or waits for an interactive login.
      *
-     * @param {{user: string, password: string}} [credentials]
-     * @returns {Promise<{key: string, user: string, realm: string, provider: string}>} User metadata
+     * @param {{user: string, password: string}|{idToken: string}} [credentials]
+     * @param {string} [provider="ccm"] - Authentication method for supplied credentials
+     * @returns {Promise<UserIdentity>} User metadata
      */
-    this.login = (credentials) => {
-      if (token)
-        return Promise.resolve({
-          key: this.state.key,
-          user: this.state.user,
-          realm: this.state.realm,
-          provider: this.state.provider,
-        });
+    this.login = (credentials, provider = "ccm") => {
+      if (token) return Promise.resolve({ ...this.state });
       return credentials
-        ? authenticate("login", credentials)
+        ? authenticate("login", credentials, provider)
         : promptLogin("login");
     };
 
@@ -176,26 +171,16 @@ export const component = {
      * Registers and logs in a local user, or opens the registration form.
      *
      * @param {{user: string, password: string}} [credentials]
-     * @returns {Promise<{key: string, user: string, realm: string, provider: string}>} User metadata
+     * @returns {Promise<UserIdentity>} User metadata
      */
     this.register = (credentials) => {
       if (!this.registration)
         return Promise.reject(new Error(this.labels.registrationDisabled));
-      if (token)
-        return Promise.resolve({
-          key: this.state.key,
-          user: this.state.user,
-          realm: this.state.realm,
-          provider: this.state.provider,
-        });
+      if (token) return Promise.resolve({ ...this.state });
       return credentials
         ? authenticate("register", credentials)
         : promptLogin("register");
     };
-
-    /** Accepts a provider callback; only the server decides the user's identity. */
-    this.loginWithProvider = (provider, credentials) =>
-      authenticate("login", credentials, provider);
 
     /** Discards the session and cancels a pending interactive login. */
     this.logout = async () => {
@@ -205,10 +190,7 @@ export const component = {
       const changed = token !== null;
       token = null;
       sessionStorageAccess("removeItem");
-      this.state.key = null;
-      this.state.user = null;
-      this.state.realm = null;
-      this.state.provider = null;
+      this.state = null;
       this.gui.username = "";
       this.gui.message = "";
       this.gui.mode = "login";
@@ -273,7 +255,7 @@ export const component = {
           const credentials = await popup.promise;
           if (version !== requestVersion) return;
           this.gui.busy = false;
-          await this.loginWithProvider("google", credentials);
+          await this.login(credentials, "google");
         } catch (error) {
           if (version !== requestVersion) return;
           this.gui.message =
@@ -389,6 +371,7 @@ export const component = {
       }
     };
 
+    /** Updates the views while preserving the existing dialog element. */
     const render = () => {
       // Replacing an open dialog would lose its native modal state and focus handling.
       if (!this.element?.querySelector("[data-user-shell]"))
@@ -415,30 +398,6 @@ export const component = {
         dialog.close();
         this.element.querySelector("[data-user-trigger] button")?.focus();
       }
-    };
-
-    /** Opens one shared login flow; failed submissions leave its promise pending. */
-    const promptLogin = (nextMode) => {
-      if (pendingLogin) return pendingLogin.promise;
-      this.gui.mode = nextMode;
-      this.gui.dialog = true;
-      this.gui.message = "";
-      const promise = new Promise((resolve, reject) => {
-        pendingLogin = { resolve, reject };
-      });
-      pendingLogin.promise = promise;
-      this.gui.cancellable = true;
-      render();
-      return promise;
-    };
-
-    /** Rejects waiting callers without changing an existing authenticated session. */
-    const cancelPendingLogin = () => {
-      if (!pendingLogin) return;
-      const { reject } = pendingLogin;
-      pendingLogin = null;
-      this.gui.cancellable = false;
-      reject(new DOMException(this.labels.loginCancelled, "AbortError"));
     };
 
     /** Shared request flow for credential-based calls and form submissions. */
@@ -497,10 +456,12 @@ export const component = {
         )
           throw new Error(this.labels.invalidAuthenticationResponse);
         token = result.token;
-        this.state.key = result.key;
-        this.state.user = provider === "ccm" ? credentials.user : result.user;
-        this.state.realm = this.realm;
-        this.state.provider = provider;
+        this.state = {
+          key: result.key,
+          user: provider === "ccm" ? credentials.user : result.user,
+          realm: this.realm,
+          provider,
+        };
         sessionStorageAccess(
           "setItem",
           JSON.stringify({
@@ -544,5 +505,39 @@ export const component = {
       await this.emit(operation);
       return value;
     };
+
+    /** Opens one shared login flow; failed submissions leave its promise pending. */
+    const promptLogin = (nextMode) => {
+      if (pendingLogin) return pendingLogin.promise;
+      this.gui.mode = nextMode;
+      this.gui.dialog = true;
+      this.gui.message = "";
+      const promise = new Promise((resolve, reject) => {
+        pendingLogin = { resolve, reject };
+      });
+      pendingLogin.promise = promise;
+      this.gui.cancellable = true;
+      render();
+      return promise;
+    };
+
+    /** Rejects waiting callers without changing an existing authenticated session. */
+    const cancelPendingLogin = () => {
+      if (!pendingLogin) return;
+      const { reject } = pendingLogin;
+      pendingLogin = null;
+      this.gui.cancellable = false;
+      reject(new DOMException(this.labels.loginCancelled, "AbortError"));
+    };
   },
 };
+
+/**
+ * Authenticated user metadata (cached metadata is provisional until a server request).
+ *
+ * @typedef {Object} UserIdentity
+ * @property {string} key - Unique account key within the realm
+ * @property {string} user - Display name or local username
+ * @property {string} realm - Independent user area
+ * @property {string} provider - Authentication provider, e.g. "ccm" or "google"
+ */

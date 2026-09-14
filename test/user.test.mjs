@@ -28,6 +28,7 @@ test("register, token access, metadata and logout", async () => {
     return { key: "account", token: "jwt" };
   }, { extensions: [event => events.push(event.type)] });
   assert.equal(app.getToken(), null);
+  assert.equal(app.state, null);
   const value = await app.register({ user: "André", password: "secret" });
   assert.deepEqual(requests[0].params, { register: { user: "André", password: "secret" }, realm: "ccm" });
   assert.equal(app.getToken(), "jwt");
@@ -49,9 +50,7 @@ test("register, token access, metadata and logout", async () => {
   assert.equal(app.getKey, undefined);
   await app.logout();
   assert.equal(app.isLoggedIn(), false);
-  assert.equal(app.state.key, null);
-  assert.equal(app.state.user, null);
-  assert.equal(app.state.realm, null);
+  assert.equal(app.state, null);
   assert.deepEqual(events, ["register", "logout"]);
 });
 
@@ -147,7 +146,7 @@ test("account deletion requires success before clearing the local session", asyn
   await app.deleteAccount();
   assert.deepEqual(requests.at(-1), { deleteAccount: true, token: "jwt" });
   assert.equal(app.getToken(), null);
-  assert.equal(app.state.user, null);
+  assert.equal(app.state, null);
   assert.equal(app.gui.dialog, false);
 });
 
@@ -228,7 +227,7 @@ test("Google sessions save only CCM credentials and restore the selected realm",
   const storage = browserStorage(t);
   const metadata = { key: "google-account", user: "Google user", realm: "tea", provider: "google" };
   const { app } = create(async () => ({ ...metadata, token: "ccm-jwt" }), { realm: "tea" });
-  await app.loginWithProvider("google", { idToken: "google-proof" });
+  await app.login({ idToken: "google-proof" }, "google");
   assert.deepEqual(JSON.parse([...storage.values()][0]), { ...metadata, token: "ccm-jwt" });
   const { app: reloaded } = create(undefined, { realm: "tea" });
   await reloaded.init();
@@ -281,4 +280,19 @@ test("blocked sessionStorage does not prevent login or logout", async t => {
   assert.equal(app.getToken(), "jwt");
   await app.logout();
   assert.equal(app.getToken(), null);
+});
+
+test("views handle null state before login and after logout", async () => {
+  const views = await import("../resources/views.mjs");
+  const { app } = create();
+  app.ui.html = (parts, ...values) => parts.reduce((text, part, i) => text + part + (values[i] ?? ""), "");
+  assert.match(views.trigger(app), /Sign in/);
+  assert.match(views.dialog(app), /name="password"/);
+  await app.login({ user: "André", password: "pw" });
+  assert.match(views.trigger(app), /André/);
+  assert.match(views.dialog(app), /Your profile/);
+  await app.logout();
+  assert.equal(app.state, null);
+  assert.match(views.trigger(app), /Sign in/);
+  assert.match(views.dialog(app), /name="password"/);
 });

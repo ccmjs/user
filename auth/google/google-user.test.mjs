@@ -17,7 +17,7 @@ test("Google callback uses verified server metadata and resolves interactive log
     return { key: "external", token: "ccm-jwt", user: "Google User", realm: "ccm", provider: "google" };
   });
   const waiting = app.login();
-  await app.loginWithProvider("google", { idToken: "google-proof" });
+  await app.login({ idToken: "google-proof" }, "google");
   assert.deepEqual(await waiting, { key: "external", user: "Google User", realm: "ccm", provider: "google" });
   assert.equal(app.getToken(), "ccm-jwt");
 });
@@ -25,7 +25,7 @@ test("Google callback uses verified server metadata and resolves interactive log
 test("late provider responses cannot restore a cancelled session", async () => {
   let finish;
   const { app } = create(() => new Promise(resolve => { finish = resolve; }));
-  const pending = app.loginWithProvider("google", { idToken: "proof" });
+  const pending = app.login({ idToken: "proof" }, "google");
   const rejected = assert.rejects(pending, { name: "AbortError" });
   await app.logout();
   finish({ key: "external", token: "jwt", user: "Name", realm: "ccm", provider: "google" });

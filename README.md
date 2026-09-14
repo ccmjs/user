@@ -48,6 +48,7 @@ when ending observation or changing users.
 | `start()` | Renders the current state without discarding the session |
 | `login()` | Opens the form and waits for successful authentication |
 | `login({ user, password })` | Logs in with supplied credentials |
+| `login({ idToken }, "google")` | Logs in with a Google ID token verified by the server |
 | `register()` | Opens the registration form and waits for success |
 | `register({ user, password })` | Creates an account and logs in |
 | `deleteAccount()` | Marks the authenticated account as deleted and signs out after success |
@@ -129,13 +130,14 @@ Views in `resources/views.mjs` use `app.ui.html` from the bundled
 connect the templates to `instance.events`, following the Quiz component.
 Dynamic text and quoted attribute values are escaped before interpolation.
 
-Configuration defines component options. `app.state` contains only domain data:
+Configuration defines component options. `app.state` is `null` when logged out.
+When logged in, it contains a complete `UserIdentity` with:
 `key`, `user`, `realm` and `provider`. The separate `app.gui` object contains transient GUI
 state: `mode`, `busy`, `message`, `username`, `cancellable` and `dialog`. Views read
 from both objects. Serializing `state` excludes GUI state; restoring GUI state
 through routing or browser storage is a separate, explicit concern.
 After authentication, `state.key`, `state.user` and `state.realm` contain the
-user metadata; after logout all metadata fields are `null`. Only the token, the pending authentication promise
+user metadata; after logout `state` is `null`. Only the token, the pending authentication promise
 and the request version counter remain private. Read the token through `getToken()`
 and user metadata directly through `state.key`, `state.user` and `state.realm`.
 
