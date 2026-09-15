@@ -15,7 +15,7 @@ export function trigger(app) {
     <button type="button" class="account-button ${app.isLoggedIn() ? "signed-in" : ""}"
             data-on-click="open" aria-haspopup="dialog">
       ${icon(app, app.isLoggedIn() ? "user" : "login")}
-      <span>${escape(app.isLoggedIn() ? app.state.user : app.labels.login)}</span>
+      <span>${escape(app.isLoggedIn() ? app.getState().user : app.labels.login)}</span>
     </button>
   `;
 }
@@ -51,7 +51,8 @@ export function dialog(app) {
 }
 
 function profile(app) {
-  const { state, labels } = app;
+  const { labels } = app;
+  const state = app.getState();
   return app.ui.html`
     <div class="profile-heading">
       ${icon(app, "user")}

@@ -19,7 +19,7 @@ authentication. Change `url` there to use another server.
 ```javascript
 const user = await ccm.start("./ccm.user.mjs", {
   url: "http://localhost:8080",
-  extensions: [({ app, type }) => console.log(type, app.state)],
+  extensions: [({ app, type }) => console.log(type, app.getState())],
 }, document.querySelector("main"));
 
 // Resolves after successful interactive authentication; cancellation rejects
@@ -54,7 +54,9 @@ when ending observation or changing users.
 | `deleteAccount()` | Marks the authenticated account as deleted and signs out after success |
 | `logout()` | Discards the session and cancels pending interactive authentication |
 | `isLoggedIn()` | Whether the instance currently holds a token |
+| `getState()` | Copy of user metadata or `null` |
 | `getToken()` | JWT or `null` |
+| `getSessionOwner()` | Highest matching user instance responsible for the shared session |
 | `emit(type)` | Runs configured extensions sequentially with `{ app, type }` |
 
 Interactive cancellation rejects with `AbortError`. Invalid credentials leave
@@ -69,7 +71,7 @@ disables registration in this component; it does not disable the server endpoint
 `extensions` accepts a function or an array of functions receiving `{ app, type }`.
 `app.emit(type)` awaits them sequentially in configuration order. Events are
 `login`, `register`, `logout` and `deleteAccount`, emitted after the successful
-action (deletion emits `logout` first). User metadata is available in `app.state`.
+action (deletion emits `logout` first). User metadata is available in `app.getState()`.
 An extension error stops dispatch and rejects the operation awaiting `emit`; completed
 state changes are not rolled back. If a logout extension fails during deletion,
 the subsequent `deleteAccount` event is not emitted.
@@ -91,7 +93,7 @@ their own colors. The defaults are inline SVG and need no extra image requests.
 Inline markup is trusted developer configuration, not sanitized user input.
 
 By default, `session: true` saves the CCM JWT and public user metadata in
-`sessionStorage`, so login survives reloads in the same tab. During `init()`, the
+`sessionStorage`, so login survives reloads in the same tab. During `ready()`, the
 component restores this cached session locally, without a server request or a new
 `login` event. Malformed entries and the old token-only format are discarded.
 The displayed login is provisional: token expiration and account deletion are
@@ -101,8 +103,9 @@ Without a server request, an invalid session may still appear logged in.
 
 Set `session: false` for memory-only authentication. Storage keys include the server
 URL and `realm` (default: `"ccm"`). Use distinct realms to isolate
-independent user areas on the same server. Instances sharing a realm use the same saved
-session on initialization; already-running instances are not synchronized.
+independent user areas on the same server. Independent instances with the same server
+and realm read the same saved session on initialization but do not synchronize later
+changes. Instances sharing an ancestor user instead use its live session as described below.
 Browser storage belongs to the embedding page's origin, not the component's host.
 It is accessible to JavaScript on that origin. Blocked storage falls back to memory.
 Passwords, Google ID tokens and GUI state are never saved.
@@ -130,16 +133,15 @@ Views in `resources/views.mjs` use `app.ui.html` from the bundled
 connect the templates to `instance.events`, following the Quiz component.
 Dynamic text and quoted attribute values are escaped before interpolation.
 
-Configuration defines component options. `app.state` is `null` when logged out.
-When logged in, it contains a complete `UserIdentity` with:
-`key`, `user`, `realm` and `provider`. The separate `app.gui` object contains transient GUI
-state: `mode`, `busy`, `message`, `username`, `cancellable` and `dialog`. Views read
-from both objects. Serializing `state` excludes GUI state; restoring GUI state
-through routing or browser storage is a separate, explicit concern.
-After authentication, `state.key`, `state.user` and `state.realm` contain the
-user metadata; after logout `state` is `null`. Only the token, the pending authentication promise
-and the request version counter remain private. Read the token through `getToken()`
-and user metadata directly through `state.key`, `state.user` and `state.realm`.
+Configuration defines component options. User metadata remains private.
+`app.getState()` returns `null` when logged out or a copy of the complete
+`UserIdentity` with `key`, `user`, `realm` and `provider` when logged in.
+Changing the returned object does not change the session. The separate `app.gui`
+object contains transient GUI state: `mode`, `busy`, `message`, `username`,
+`cancellable` and `dialog`. Views read metadata through `getState()` and GUI
+state through `app.gui`. Persisting GUI state is a separate, explicit concern.
+The token, pending authentication promise and request version counter also remain
+private. Read the token through `getToken()`.
 
 Responsive component styles use container queries instead of viewport-based media
 queries. The modal content defines the `dialog` inline-size container.
@@ -194,6 +196,44 @@ method (`ccm` or `google`). Google can be used within any realm.
 `sessionKey` is replaced by `realm`; existing browser sessions require one new login.
 Existing server accounts require the migration documented in the server README.
 
-A dataset's owner identity is `${user.state.realm}:${user.state.key}`. When creating
+A dataset's owner identity is `${user.getState().realm}:${user.getState().key}`. When creating
 a protected dataset, pass `_` with the desired read/write/delete grants; the server
 sets its owner from your JWT. Public datasets without `_` cannot be claimed later.
+
+
+## User instances in a component hierarchy
+
+Each application component can keep its own `config.user` instance. During `init()`,
+each user instance normalizes its server URL. In `ready()`, a while loop walks the
+parent chain and selects the highest compatible user with the same URL and realm.
+References to the user instance itself are skipped. Different
+realms/servers remain independent; siblings without a matching ancestor remain
+independent too. Parent relationships and configuration must be established before
+initialization; changing the hierarchy afterward does not rebind sessions.
+
+Only the session owner renders its UI and accesses sessionStorage. Its configuration
+controls registration, Google login and session persistence. Child user instances
+forward login, registration, logout, account deletion and token access. Their
+`getState()` delegates to the owner and returns a copy of its metadata, or `null`
+after logout. Their own GUI state is unused.
+DOM events also go to the owner. Calling `start()` on a child clears its own element.
+
+The owner dispatches authentication events to its own extensions first, followed by
+attached instances in initialization order. Each receives `{ app, type }` with its
+own user instance as `app`. As before, an extension failure stops dispatch and
+propagates without reverting the completed state change. Calling `emit()` directly
+on a child invokes its own extensions and listeners. Restoration emits no login event.
+
+`getSessionOwner()` lets the updated framework group concurrent re-login attempts
+from different user instances. They share one logout/login attempt and one pending
+interactive login promise, without canceling each other's dialogs.
+
+
+Version-independent cooperation uses the public `subscribe(listener)` and
+`getSessionOwner()` methods, together with the authentication methods above.
+`subscribe` receives event types and returns an unsubscribe function. Child instances
+subscribe once during `ready()` and dispatch the received events through their
+own `emit()`. No module-level registry or global browser state is needed. Different
+module versions can cooperate if they implement this interface; older versions
+without it remain independent. Applications continue to use only `config.user`
+and `extensions` and do not need to call these coordination methods themselves.

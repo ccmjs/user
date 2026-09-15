@@ -98,10 +98,10 @@ export const component = {
   },
   Instance: function () {
     /**
-     * Public user metadata, or `null` when logged out. Credentials remain private.
+     * Private user metadata, or `null` when logged out. Read a copy through getState().
      * @type {UserIdentity|null}
      */
-    this.state = null;
+    let state = null;
 
     /** Transient GUI state, separate from the domain data. */
     this.gui = {
@@ -130,14 +130,40 @@ export const component = {
     /** Incrementing invalidates older responses; it does not abort the HTTP request. */
     let requestVersion = 0;
 
+    /** Highest matching ancestor responsible for authentication, or `null` for this instance. */
+    let sessionOwner = null;
+
+    /** Event listeners used by dependent user instances, including other module versions. */
+    const listeners = new Set();
+
     /** Cancels the current Google login popup, if any. */
     let cancelGoogleLogin;
 
     /** Shared promise and callbacks for callers waiting on the login form. */
     let pendingLogin;
 
-    /** Restores cached metadata; the next authenticated request validates the session. */
+    /** Normalizes the server URL before any instance enters ready(). */
     this.init = async () => {
+      this.url = new URL(this.url).href;
+    };
+
+    /** Joins the highest matching ancestor, or restores cached metadata locally. */
+    this.ready = async () => {
+      sessionOwner = findSessionOwner();
+      if (sessionOwner) {
+        for (const method of [
+          "login",
+          "register",
+          "logout",
+          "deleteAccount",
+          "isLoggedIn",
+          "getToken",
+        ])
+          this[method] = (...args) => sessionOwner[method](...args);
+        this.events = sessionOwner.events;
+        sessionOwner.subscribe((type) => this.emit(type));
+        return;
+      }
       const saved = sessionStorageAccess("getItem");
       if (!saved) return;
       try {
@@ -149,7 +175,7 @@ export const component = {
         )
           throw new Error(this.labels.invalidAuthenticationResponse);
         token = session.token;
-        this.state = {
+        state = {
           key: session.key,
           user: session.user,
           realm: session.realm,
@@ -172,28 +198,10 @@ export const component = {
      * @returns {Promise<UserIdentity>} User metadata
      */
     this.login = (credentials, provider = "ccm") => {
-      if (token) return Promise.resolve({ ...this.state });
+      if (token) return Promise.resolve({ ...state });
       return credentials
         ? authenticate("login", credentials, provider)
         : promptLogin("login");
-    };
-
-    /** Discards the session and cancels a pending interactive login. */
-    this.logout = async () => {
-      cancelGoogleLogin?.();
-      requestVersion++;
-      this.gui.busy = false;
-      const changed = token !== null;
-      token = null;
-      sessionStorageAccess("removeItem");
-      this.state = null;
-      this.gui.username = "";
-      this.gui.message = "";
-      this.gui.mode = "login";
-      this.gui.dialog = false;
-      cancelPendingLogin();
-      render();
-      if (changed) await this.emit("logout");
     };
 
     /**
@@ -205,17 +213,29 @@ export const component = {
     this.register = (credentials) => {
       if (!this.registration)
         return Promise.reject(new Error(this.labels.registrationDisabled));
-      if (token) return Promise.resolve({ ...this.state });
+      if (token) return Promise.resolve({ ...state });
       return credentials
         ? authenticate("register", credentials)
         : promptLogin("register");
     };
 
-    /** Returns whether this instance holds a server-issued token. */
-    this.isLoggedIn = () => token !== null;
-
-    /** Returns the JWT, or null when logged out. */
-    this.getToken = () => token;
+    /** Discards the session and cancels a pending interactive login. */
+    this.logout = async () => {
+      cancelGoogleLogin?.();
+      requestVersion++;
+      this.gui.busy = false;
+      const changed = token !== null;
+      token = null;
+      sessionStorageAccess("removeItem");
+      state = null;
+      this.gui.username = "";
+      this.gui.message = "";
+      this.gui.mode = "login";
+      this.gui.dialog = false;
+      cancelPendingLogin();
+      render();
+      if (changed) await this.emit("logout");
+    };
 
     /** Marks the current account as deleted and discards its local session. */
     this.deleteAccount = async () => {
@@ -250,6 +270,22 @@ export const component = {
       await this.logout();
       await this.emit("deleteAccount");
     };
+
+    /** Returns whether this instance holds a server-issued token. */
+    this.isLoggedIn = () => token !== null;
+
+    /**
+     * Returns a copy of the shared user metadata, or `null` when logged out.
+     * @returns {UserIdentity|null}
+     */
+    this.getState = () =>
+      sessionOwner ? sessionOwner.getState() : state && { ...state };
+
+    /** Returns the JWT, or null when logged out. */
+    this.getToken = () => token;
+
+    /** Returns the shared authentication instance for coordinating concurrent re-login attempts. */
+    this.getSessionOwner = () => sessionOwner ?? this;
 
     /** DOM handlers bound by ccm-ui through data-on-* attributes. */
     this.events = {
@@ -360,6 +396,41 @@ export const component = {
       const extensions = [].concat(this.extensions || []);
       for (const extension of extensions)
         if (extension) await extension({ app: this, type });
+      for (const listener of listeners) await listener(type);
+    };
+
+    /**
+     * Subscribes to this instance's events without depending on its module version.
+     * @param {function(string): (void|Promise<void>)} listener - Receives the event type
+     * @returns {function(): boolean} Removes the listener
+     */
+    this.subscribe = (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    };
+
+    /**
+     * Finds the highest compatible ancestor user instance with the same server and realm.
+     * @returns {object|null} Matching user instance, or null if this instance owns the session
+     */
+    const findSessionOwner = () => {
+      let owner = null;
+      let parent = this.parent;
+      while (parent) {
+        const user = parent.user;
+        if (
+          user &&
+          user !== this &&
+          typeof user.subscribe === "function" &&
+          typeof user.getSessionOwner === "function" &&
+          typeof user.getState === "function" &&
+          user.realm === this.realm &&
+          user.url === this.url
+        )
+          owner = user;
+        parent = parent.parent;
+      }
+      return owner;
     };
 
     /**
@@ -374,8 +445,7 @@ export const component = {
     const sessionStorageAccess = (method, value) => {
       if (!this.session) return null;
       try {
-        const server = new URL(this.url).href;
-        const key = `ccm-user-session:${JSON.stringify([server, this.realm])}`;
+        const key = `ccm-user-session:${JSON.stringify([this.url, this.realm])}`;
         return sessionStorage[method](key, value) ?? null;
       } catch {
         return null;
@@ -385,7 +455,7 @@ export const component = {
     /**
      * Checks the shape of user metadata and its realm, not the token's validity.
      *
-     * @param {unknown} value - User metadata, e.g. this.state or a saved session
+     * @param {unknown} value - User metadata, e.g. state or a saved session
      * @returns {boolean} Whether all required identity fields are valid
      */
     const isValidIdentity = (value) =>
@@ -398,6 +468,10 @@ export const component = {
 
     /** Updates the views while preserving the existing dialog element. */
     const render = () => {
+      if (sessionOwner) {
+        this.element?.replaceChildren();
+        return;
+      }
       // Replacing an open dialog would lose its native modal state and focus handling.
       if (!this.element?.querySelector("[data-user-shell]"))
         this.ui.render(this.views.main(this), this.element, this);
@@ -479,11 +553,8 @@ export const component = {
         )
           throw new Error(this.labels.invalidAuthenticationResponse);
         token = result.token;
-        this.state = identity;
-        sessionStorageAccess(
-          "setItem",
-          JSON.stringify({ token, ...this.state }),
-        );
+        state = identity;
+        sessionStorageAccess("setItem", JSON.stringify({ token, ...state }));
       } catch (error) {
         if (version === requestVersion) {
           if (provider !== "ccm") this.gui.message = this.labels.googleFailed;
@@ -502,10 +573,10 @@ export const component = {
         }
       }
       const value = {
-        key: this.state.key,
-        user: this.state.user,
-        realm: this.state.realm,
-        provider: this.state.provider,
+        key: state.key,
+        user: state.user,
+        realm: state.realm,
+        provider: state.provider,
       };
       const waiting = pendingLogin;
       pendingLogin = null;

@@ -10,6 +10,7 @@ function create(load = async () => ({ key: "account", token: "jwt" }), config = 
     views: { main: app => { view = app.gui; return app.gui; } },
     ui: { render: () => {} },
   });
+  app.url = new URL(app.url).href; // Configuration after the init phase.
   return { app, view: () => view };
 }
 
@@ -29,29 +30,33 @@ test("register, token access, metadata and logout", async () => {
     return { key: "account", token: "jwt" };
   }, { extensions: [event => events.push(event.type)] });
   assert.equal(app.getToken(), null);
-  assert.equal(app.state, null);
+  assert.equal(app.getState(), null);
   const value = await app.register({ user: "André", password: "secret" });
   assert.deepEqual(requests[0].params, { register: { user: "André", password: "secret" }, realm: "ccm" });
   assert.equal(app.getToken(), "jwt");
-  assert.equal(app.state.key, "account");
+  assert.equal(app.getState().key, "account");
   assert.equal(app.isLoggedIn(), true);
   assert.deepEqual(value, { key: "account", user: "André", realm: "ccm", provider: "ccm" });
-  assert.deepEqual(JSON.parse(JSON.stringify(app.state)), {
+  assert.deepEqual(JSON.parse(JSON.stringify(app.getState())), {
     key: "account", user: "André", realm: "ccm", provider: "ccm",
   });
+  assert.equal(Object.hasOwn(app, "state"), false);
+  const snapshot = app.getState();
+  snapshot.key = "changed";
+  assert.equal(app.getState().key, "account");
   value.key = "changed";
-  assert.equal(app.state.key, "account");
+  assert.equal(app.getState().key, "account");
   await app.start();
   assert.equal(app.getToken(), "jwt");
-  assert.equal(app.state.user, "André");
-  assert.equal(app.state.realm, "ccm");
-  assert.equal(Object.hasOwn(app.state, "session"), false);
-  assert.equal(JSON.stringify(app.state).includes("jwt"), false);
+  assert.equal(app.getState().user, "André");
+  assert.equal(app.getState().realm, "ccm");
+  assert.equal(Object.hasOwn(app.getState(), "session"), false);
+  assert.equal(JSON.stringify(app.getState()).includes("jwt"), false);
   assert.equal(app.getValue, undefined);
   assert.equal(app.getKey, undefined);
   await app.logout();
   assert.equal(app.isLoggedIn(), false);
-  assert.equal(app.state, null);
+  assert.equal(app.getState(), null);
   assert.deepEqual(events, ["register", "logout"]);
 });
 
@@ -147,7 +152,7 @@ test("account deletion requires success before clearing the local session", asyn
   await app.deleteAccount();
   assert.deepEqual(requests.at(-1), { deleteAccount: true, token: "jwt" });
   assert.equal(app.getToken(), null);
-  assert.equal(app.state, null);
+  assert.equal(app.getState(), null);
   assert.equal(app.gui.dialog, false);
 });
 
@@ -212,14 +217,14 @@ test("reload restores token and metadata without a server request or login event
   let requests = 0;
   const events = [];
   const { app: reloaded } = create(async () => { requests++; }, { extensions: [({ type }) => events.push(type)] });
-  await reloaded.init();
+  await reloaded.init(); await reloaded.ready();
   await reloaded.start();
   assert.equal(requests, 0);
   assert.deepEqual(events, []);
   assert.equal(reloaded.getToken(), app.getToken());
-  assert.deepEqual(reloaded.state, app.state);
+  assert.deepEqual(reloaded.getState(), app.getState());
   assert.equal(reloaded.gui.dialog, false);
-  assert.equal(JSON.stringify(reloaded.state).includes("jwt"), false);
+  assert.equal(JSON.stringify(reloaded.getState()).includes("jwt"), false);
   await reloaded.logout();
   assert.equal(storage.size, 0);
 });
@@ -231,8 +236,8 @@ test("Google sessions save only CCM credentials and restore the selected realm",
   await app.login({ idToken: "google-proof" }, "google");
   assert.deepEqual(JSON.parse([...storage.values()][0]), { ...metadata, token: "ccm-jwt" });
   const { app: reloaded } = create(undefined, { realm: "tea" });
-  await reloaded.init();
-  assert.deepEqual(reloaded.state, metadata);
+  await reloaded.init(); await reloaded.ready();
+  assert.deepEqual(reloaded.getState(), metadata);
   assert.equal(reloaded.getToken(), "ccm-jwt");
 });
 
@@ -243,7 +248,7 @@ test("malformed, old or mismatched session entries are discarded", async t => {
     storage.set(key, saved);
     let requests = 0;
     const { app } = create(async () => { requests++; });
-    await app.init();
+    await app.init(); await app.ready();
     assert.equal(requests, 0);
     assert.equal(app.getToken(), null);
     assert.equal(storage.size, 0);
@@ -256,7 +261,7 @@ test("storage is isolated by server and realm and can be disabled", async t => {
   await app.login({ user: "a", password: "pw" });
   for (const config of [{ url: "https://other.example" }, { realm: "other" }, { session: false }]) {
     const { app: other } = create(undefined, config);
-    await other.init();
+    await other.init(); await other.ready();
     assert.equal(other.getToken(), null);
     await other.logout();
     assert.equal(storage.size, 1);
@@ -276,7 +281,7 @@ test("blocked sessionStorage does not prevent login or logout", async t => {
   browserStorage(t);
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, get() { throw new DOMException("Blocked", "SecurityError"); } });
   const { app } = create();
-  await app.init();
+  await app.init(); await app.ready();
   await app.login({ user: "a", password: "pw" });
   assert.equal(app.getToken(), "jwt");
   await app.logout();
@@ -293,7 +298,7 @@ test("views handle null state before login and after logout", async () => {
   assert.match(views.trigger(app), /André/);
   assert.match(views.dialog(app), /Your profile/);
   await app.logout();
-  assert.equal(app.state, null);
+  assert.equal(app.getState(), null);
   assert.match(views.trigger(app), /Sign in/);
   assert.match(views.dialog(app), /name="password"/);
 });
@@ -305,10 +310,10 @@ test("identity keys must be single valid CCM keys on login and restoration", asy
   for (const key of [["app", "user"], "", "1user", "User", "user-name", "a".repeat(33)]) {
     const { app } = create(async () => ({ key, token: "jwt" }));
     await assert.rejects(app.login({ user: "a", password: "pw" }), /Invalid authentication response/);
-    assert.equal(app.state, null);
+    assert.equal(app.getState(), null);
     storage.set(storageKey, JSON.stringify({ key, token: "jwt", user: "a", realm: "ccm", provider: "ccm" }));
-    await app.init();
-    assert.equal(app.state, null);
+    await app.init(); await app.ready();
+    assert.equal(app.getState(), null);
     assert.equal(storage.size, 0);
   }
 });
