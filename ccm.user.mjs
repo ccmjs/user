@@ -103,12 +103,14 @@ export const component = {
      */
     this.state = null;
 
-    // Transient GUI state, separate from the domain data
+    /** Transient GUI state, separate from the domain data. */
     this.gui = {
-      mode: "login", // login, register, profile or delete
+      /** Active view: login, register, profile or delete. */
+      mode: "login",
       busy: false,
       message: "",
-      username: "", // Form draft; state.user is the authenticated username
+      /** Form draft; `state.user` is the authenticated username. */
+      username: "",
       cancellable: false,
       dialog: false,
     };
@@ -116,10 +118,14 @@ export const component = {
     /** The current authentication token, or `null` when logged out. */
     let token = null;
 
-    let cancelGoogleLogin;
-    let pendingLogin; // Shared promise for callers waiting on the login form
-    // Incrementing invalidates older responses; it does not abort the HTTP request.
+    /** Incrementing invalidates older responses; it does not abort the HTTP request. */
     let requestVersion = 0;
+
+    /** Cancels the current Google login popup, if any. */
+    let cancelGoogleLogin;
+
+    /** Shared promise and callbacks for callers waiting on the login form. */
+    let pendingLogin;
 
     /** Restores cached metadata; the next authenticated request validates the session. */
     this.init = async () => {
