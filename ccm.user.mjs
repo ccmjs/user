@@ -87,8 +87,7 @@ export const component = {
       deletionRequiresLogin: "Sign in before deleting your account.",
       requestBusy: "A request is already in progress.",
       googleFailed: "Google sign-in failed. Please try again.",
-      googleUnavailable:
-        "Google sign-in could not be loaded. Please reopen this dialog to retry.",
+      googleUnavailable: "Google sign-in could not be loaded. Please reopen this dialog to retry.",
       googleLogin: "Sign in with Google",
       googlePopupBlocked: "Please allow the login popup and try again.",
       googleTimeout: "Google sign-in timed out. Please try again.",
@@ -153,15 +152,7 @@ export const component = {
       sessionOwner = findSessionOwner();
       if (sessionOwner) {
         // Forward calls on this child user instance to the highest matching ancestor user instance.
-        for (const method of [
-          "login",
-          "register",
-          "logout",
-          "deleteAccount",
-          "isLoggedIn",
-          "getState",
-          "getToken",
-        ])
+        for (const method of ["login", "register", "logout", "deleteAccount", "isLoggedIn", "getState", "getToken"])
           this[method] = (...args) => sessionOwner[method](...args);
 
         // Notify this user instance's extensions and listeners when the highest matching user instance emits an event.
@@ -175,21 +166,12 @@ export const component = {
       try {
         const session = JSON.parse(saved);
         // Validate the stored metadata and token format before accepting the session.
-        if (
-          !isValidIdentity(session) ||
-          typeof session.token !== "string" ||
-          !session.token
-        )
+        if (!isValidIdentity(session) || typeof session.token !== "string" || !session.token)
           throw new Error(this.labels.invalidAuthenticationResponse);
 
         // Restore locally; the server checks token validity on the next authenticated request.
         token = session.token;
-        state = {
-          key: session.key,
-          user: session.user,
-          realm: session.realm,
-          provider: session.provider,
-        };
+        state = { key: session.key, user: session.user, realm: session.realm, provider: session.provider };
       } catch {
         // Discard malformed session data.
         sessionStorageAccess("removeItem");
@@ -208,9 +190,7 @@ export const component = {
      */
     this.login = (credentials, provider = "ccm") => {
       if (token) return Promise.resolve({ ...state });
-      return credentials
-        ? authenticate("login", credentials, provider)
-        : promptLogin("login");
+      return credentials ? authenticate("login", credentials, provider) : promptLogin("login");
     };
 
     /**
@@ -220,12 +200,9 @@ export const component = {
      * @returns {Promise<UserIdentity>} User metadata
      */
     this.register = (credentials) => {
-      if (!this.registration)
-        return Promise.reject(new Error(this.labels.registrationDisabled));
+      if (!this.registration) return Promise.reject(new Error(this.labels.registrationDisabled));
       if (token) return Promise.resolve({ ...state });
-      return credentials
-        ? authenticate("register", credentials)
-        : promptLogin("register");
+      return credentials ? authenticate("register", credentials) : promptLogin("register");
     };
 
     /** Discards the session and cancels a pending interactive login. */
@@ -255,20 +232,12 @@ export const component = {
       this.gui.message = "";
       render();
       try {
-        const result = await this.ccm.load({
-          url: this.url,
-          method: "POST",
-          params: { deleteAccount: true, token },
-        });
-        if (result !== true)
-          throw new Error(this.labels.invalidDeletionResponse);
+        const result = await this.ccm.load({ url: this.url, method: "POST", params: { deleteAccount: true, token } });
+        if (result !== true) throw new Error(this.labels.invalidDeletionResponse);
         if (version !== requestVersion) return;
       } catch (error) {
         if (version === requestVersion)
-          this.gui.message =
-            error.status === 401
-              ? this.labels.sessionExpired
-              : this.labels.deletionFailed;
+          this.gui.message = error.status === 401 ? this.labels.sessionExpired : this.labels.deletionFailed;
         throw error;
       } finally {
         if (version === requestVersion) {
@@ -313,8 +282,7 @@ export const component = {
           await this.login(credentials, "google");
         } catch (error) {
           if (version !== requestVersion) return;
-          this.gui.message =
-            error.name === "AbortError" ? "" : this.labels.googleFailed;
+          this.gui.message = error.name === "AbortError" ? "" : this.labels.googleFailed;
         } finally {
           if (cancelGoogleLogin === popup.cancel) cancelGoogleLogin = null;
           if (version === requestVersion) {
@@ -359,10 +327,7 @@ export const component = {
           user: fields.namedItem("user").value,
           password: fields.namedItem("password").value,
         };
-        if (
-          this.gui.mode === "register" &&
-          credentials.password !== fields.namedItem("confirmation").value
-        ) {
+        if (this.gui.mode === "register" && credentials.password !== fields.namedItem("confirmation").value) {
           this.gui.username = credentials.user;
           this.gui.message = this.labels.mismatch;
           render();
@@ -402,8 +367,7 @@ export const component = {
      */
     this.emit = async (type) => {
       const extensions = [].concat(this.extensions || []);
-      for (const extension of extensions)
-        if (extension) await extension({ app: this, type });
+      for (const extension of extensions) if (extension) await extension({ app: this, type });
       for (const listener of listeners) await listener(type);
     };
 
@@ -481,67 +445,60 @@ export const component = {
         return;
       }
       // Replacing an open dialog would lose its native modal state and focus handling.
-      if (!this.element?.querySelector("[data-user-shell]"))
-        this.ui.render(this.views.main(this), this.element, this);
+      if (!this.element?.querySelector("[data-user-shell]")) this.ui.render(this.views.main(this), this.element, this);
       const dialog = this.element?.querySelector("dialog");
       if (!dialog) return;
-      this.ui.render(
-        this.views.trigger(this),
-        this.element.querySelector("[data-user-trigger]"),
-        this,
-      );
+      this.ui.render(this.views.trigger(this), this.element.querySelector("[data-user-trigger]"), this);
       this.ui.render(this.views.dialog(this), dialog, this);
       if (this.gui.dialog) {
         if (!dialog.open) dialog.showModal();
         if (!this.gui.busy)
-          dialog
-            .querySelector(
-              this.gui.message
-                ? '[name="password"], [autofocus]'
-                : "[autofocus]",
-            )
-            ?.focus();
+          dialog.querySelector(this.gui.message ? '[name="password"], [autofocus]' : "[autofocus]")?.focus();
       } else if (dialog.open) {
         dialog.close();
         this.element.querySelector("[data-user-trigger] button")?.focus();
       }
     };
 
-    /** Shared request flow for credential-based calls and form submissions. */
+    /**
+     * Authenticates supplied credentials and completes any waiting interactive login.
+     * @param {"login"|"register"} operation - Server operation to perform
+     * @param {{user: string, password: string}|{idToken: string}} credentials - Local credentials or provider ID token
+     * @param {string} [provider="ccm"] - Authentication provider; registration uses ccm
+     * @returns {Promise<UserIdentity>} Copy of the authenticated user metadata
+     */
     const authenticate = async (operation, credentials, provider = "ccm") => {
+      // Reject another authentication attempt while a request or Google popup is active.
       if (this.gui.busy) throw new Error(this.labels.authenticationBusy);
+
+      // Local authentication requires a username and password; other providers require an ID token.
       if (
         provider === "ccm" &&
-        (!credentials ||
-          typeof credentials.user !== "string" ||
-          typeof credentials.password !== "string")
+        (!credentials || typeof credentials.user !== "string" || typeof credentials.password !== "string")
       )
         throw new TypeError(this.labels.invalidCredentials);
-      if (
-        provider !== "ccm" &&
-        (!credentials ||
-          typeof credentials.idToken !== "string" ||
-          !credentials.idToken)
-      )
+      if (provider !== "ccm" && (!credentials || typeof credentials.idToken !== "string" || !credentials.idToken))
         throw new TypeError(this.labels.invalidProviderCredentials);
+
+      /** Request counter value used to detect whether this login attempt was canceled or superseded. */
       const version = ++requestVersion;
+
+      // Disable form actions, keep the entered username and clear the previous error.
       this.gui.busy = true;
       if (provider === "ccm") this.gui.username = credentials.user;
       this.gui.message = "";
       render();
       try {
-        const params =
-          operation === "register"
-            ? { register: credentials }
-            : { login: provider, credentials };
+        // Send registration data or provider credentials to the server for the configured realm.
+        const params = operation === "register" ? { register: credentials } : { login: provider, credentials };
         params.realm = this.realm;
         const result = await this.ccm.load({
           url: this.url,
           method: "POST",
           params,
         });
-        if (version !== requestVersion)
-          throw new DOMException(this.labels.loginCancelled, "AbortError");
+        // A late response must not restore a session after logout or cancellation.
+        if (version !== requestVersion) throw new DOMException(this.labels.loginCancelled, "AbortError");
         /**
          * User metadata assembled from the authentication result.
          * Local registration/login returns { key, token }; the other fields are already known.
@@ -553,6 +510,7 @@ export const component = {
           realm: provider === "ccm" ? this.realm : result?.realm,
           provider: provider === "ccm" ? provider : result?.provider,
         };
+        // Accept the session only when its metadata, provider and token format are valid.
         if (
           !isValidIdentity(identity) ||
           identity.provider !== provider ||
@@ -560,39 +518,44 @@ export const component = {
           !result.token
         )
           throw new Error(this.labels.invalidAuthenticationResponse);
+        // Keep the session in memory and save it for page reloads if persistence is enabled.
         token = result.token;
         state = identity;
         sessionStorageAccess("setItem", JSON.stringify({ token, ...state }));
       } catch (error) {
+        // Show a configured error message only if this attempt still controls the form.
         if (version === requestVersion) {
           if (provider !== "ccm") this.gui.message = this.labels.googleFailed;
           else if (error.status === 401) this.gui.message = this.labels.invalid;
-          else if (error.status === 409)
-            this.gui.message = this.labels.duplicate;
-          else if (operation === "register")
-            this.gui.message = this.labels.registrationFailed;
+          else if (error.status === 409) this.gui.message = this.labels.duplicate;
+          else if (operation === "register") this.gui.message = this.labels.registrationFailed;
           else this.gui.message = this.labels.failed;
         }
         throw error;
       } finally {
+        // Release the form without interfering with a newer authentication attempt.
         if (version === requestVersion) {
           this.gui.busy = false;
           render();
         }
       }
+      /** Copy returned to callers so they cannot modify the private user metadata. */
       const value = {
         key: state.key,
         user: state.user,
         realm: state.realm,
         provider: state.provider,
       };
+      /** Callers waiting for the shared login dialog to complete. */
       const waiting = pendingLogin;
+      // Clear the pending login and close the dialog now that authentication has succeeded.
       pendingLogin = null;
       this.gui.cancellable = false;
       this.gui.dialog = false;
       // Interactive callers receive the session before extensions run.
       waiting?.resolve(value);
       render();
+      // Notify this instance's extensions and subscribed user instances of the completed action.
       await this.emit(operation);
       return value;
     };
