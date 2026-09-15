@@ -450,16 +450,8 @@ export const component = {
       try {
         const params =
           operation === "register"
-            ? {
-                register: {
-                  user: credentials.user,
-                  password: credentials.password,
-                },
-              }
-            : {
-                login: provider,
-                credentials,
-              };
+            ? { register: credentials }
+            : { login: provider, credentials };
         params.realm = this.realm;
         const result = await this.ccm.load({
           url: this.url,
