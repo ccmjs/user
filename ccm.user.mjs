@@ -165,9 +165,11 @@ export const component = {
       if (!saved) return;
       try {
         const session = JSON.parse(saved);
-        // Validate the stored metadata and token format before accepting the session.
-        if (!isValidIdentity(session) || typeof session.token !== "string" || !session.token)
-          throw new Error(this.labels.invalidAuthenticationResponse);
+        // Discard saved sessions with invalid metadata or a missing token.
+        if (!isValidIdentity(session) || typeof session.token !== "string" || !session.token) {
+          sessionStorageAccess("removeItem");
+          return;
+        }
 
         // Restore locally; the server checks token validity on the next authenticated request.
         token = session.token;

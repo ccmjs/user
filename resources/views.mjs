@@ -50,6 +50,7 @@ export function dialog(app) {
   `;
 }
 
+/** Creates the user profile with logout and, for local accounts, account deletion. */
 function profile(app) {
   const { labels } = app;
   const state = app.getState();
@@ -74,6 +75,7 @@ function profile(app) {
   `;
 }
 
+/** Creates the account deletion confirmation with buttons to keep or delete the account. */
 function deletion(app) {
   const { gui, labels } = app;
   return app.ui.html`
@@ -88,6 +90,7 @@ function deletion(app) {
   `;
 }
 
+/** Creates the login or registration form and the Google login button when configured. */
 function authentication(app) {
   const { gui, labels } = app;
   const registering = gui.mode === "register";
@@ -124,6 +127,7 @@ function authentication(app) {
   `;
 }
 
+/** Creates the status message, showing pending feedback while a request is in progress. */
 function message(app) {
   return app.ui.html`
     <p class="message" role="${app.gui.message ? "alert" : "status"}" aria-live="polite"
