@@ -566,10 +566,13 @@ export const component = {
       return value;
     };
 
-    /** Opens one shared login flow; failed submissions leave its promise pending. */
-    const promptLogin = (nextMode) => {
+    /**
+     * Opens one shared login flow; failed submissions leave its promise pending.
+     * @param {"login"|"register"} mode - Whether to open the login or registration form
+     */
+    const promptLogin = (mode) => {
       if (pendingLogin) return pendingLogin.promise;
-      this.gui.mode = nextMode;
+      this.gui.mode = mode;
       this.gui.dialog = true;
       this.gui.message = "";
       const promise = new Promise((resolve, reject) => {
