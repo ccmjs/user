@@ -460,6 +460,11 @@ export const component = {
         });
         if (version !== requestVersion)
           throw new DOMException(this.labels.loginCancelled, "AbortError");
+        /**
+         * User metadata assembled from the authentication result.
+         * Local registration/login returns { key, token }; the other fields are already known.
+         * Google login also returns { user, realm, provider }, which we take from the server.
+         */
         const identity = {
           key: result?.key,
           user: provider === "ccm" ? credentials.user : result?.user,
@@ -477,13 +482,7 @@ export const component = {
         this.state = identity;
         sessionStorageAccess(
           "setItem",
-          JSON.stringify({
-            token,
-            key: this.state.key,
-            user: this.state.user,
-            realm: this.state.realm,
-            provider: this.state.provider,
-          }),
+          JSON.stringify({ token, ...this.state }),
         );
       } catch (error) {
         if (version === requestVersion) {
