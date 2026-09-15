@@ -163,21 +163,6 @@ export const component = {
         : promptLogin("login");
     };
 
-    /**
-     * Registers and logs in a local user, or opens the registration form.
-     *
-     * @param {{user: string, password: string}} [credentials]
-     * @returns {Promise<UserIdentity>} User metadata
-     */
-    this.register = (credentials) => {
-      if (!this.registration)
-        return Promise.reject(new Error(this.labels.registrationDisabled));
-      if (token) return Promise.resolve({ ...this.state });
-      return credentials
-        ? authenticate("register", credentials)
-        : promptLogin("register");
-    };
-
     /** Discards the session and cancels a pending interactive login. */
     this.logout = async () => {
       cancelGoogleLogin?.();
@@ -194,6 +179,21 @@ export const component = {
       cancelPendingLogin();
       render();
       if (changed) await this.emit("logout");
+    };
+
+    /**
+     * Registers and logs in a local user, or opens the registration form.
+     *
+     * @param {{user: string, password: string}} [credentials]
+     * @returns {Promise<UserIdentity>} User metadata
+     */
+    this.register = (credentials) => {
+      if (!this.registration)
+        return Promise.reject(new Error(this.labels.registrationDisabled));
+      if (token) return Promise.resolve({ ...this.state });
+      return credentials
+        ? authenticate("register", credentials)
+        : promptLogin("register");
     };
 
     /** Returns whether this instance holds a server-issued token. */
