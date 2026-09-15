@@ -216,7 +216,7 @@ controls registration, Google login and session persistence. Child user instance
 forward login, registration, logout, account deletion and token access. Their
 `getState()` delegates to the owner and returns a copy of its metadata, or `null`
 after logout. Their own GUI state is unused.
-DOM events also go to the owner. Calling `start()` on a child clears its own element.
+Only the owner's UI triggers DOM handlers. Calling `start()` on a child clears its own element.
 
 The owner dispatches authentication events to its own extensions first, followed by
 attached instances in initialization order. Each receives `{ app, type }` with its

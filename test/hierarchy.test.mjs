@@ -92,7 +92,7 @@ test("interactive callers share one promise and cancellation reaches all of them
   assert.equal(root.app.gui.dialog, true);
   assert.equal(child.app.gui.dialog, false);
   const cancelled = assert.rejects(second, { name: "AbortError" });
-  child.app.events.cancel();
+  root.app.events.cancel();
   await cancelled;
   assert.equal(root.app.gui.dialog, false);
   const waiting = child.app.login();

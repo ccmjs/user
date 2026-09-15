@@ -149,31 +149,40 @@ export const component = {
 
     /** Joins the highest matching ancestor, or restores cached metadata locally. */
     this.ready = async () => {
+      // Find the highest ancestor user instance with the same server URL and realm.
       sessionOwner = findSessionOwner();
       if (sessionOwner) {
+        // Forward calls on this child user instance to the highest matching ancestor user instance.
         for (const method of [
           "login",
           "register",
           "logout",
           "deleteAccount",
           "isLoggedIn",
+          "getState",
           "getToken",
         ])
           this[method] = (...args) => sessionOwner[method](...args);
-        this.events = sessionOwner.events;
+
+        // Notify this user instance's extensions and listeners when the highest matching user instance emits an event.
         sessionOwner.subscribe((type) => this.emit(type));
         return;
       }
+
+      // If no parent user instance has the same server URL and realm, restore this instance's session from sessionStorage.
       const saved = sessionStorageAccess("getItem");
       if (!saved) return;
       try {
         const session = JSON.parse(saved);
+        // Validate the stored metadata and token format before accepting the session.
         if (
           !isValidIdentity(session) ||
           typeof session.token !== "string" ||
           !session.token
         )
           throw new Error(this.labels.invalidAuthenticationResponse);
+
+        // Restore locally; the server checks token validity on the next authenticated request.
         token = session.token;
         state = {
           key: session.key,
@@ -278,8 +287,7 @@ export const component = {
      * Returns a copy of the shared user metadata, or `null` when logged out.
      * @returns {UserIdentity|null}
      */
-    this.getState = () =>
-      sessionOwner ? sessionOwner.getState() : state && { ...state };
+    this.getState = () => state && { ...state };
 
     /** Returns the JWT, or null when logged out. */
     this.getToken = () => token;
