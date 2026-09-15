@@ -107,11 +107,20 @@ export const component = {
     this.gui = {
       /** Active view: login, register, profile or delete. */
       mode: "login",
+
+      /** Whether an authentication or account deletion request is in progress. */
       busy: false,
+
+      /** Message displayed in the dialog; empty when there is no message. */
       message: "",
+
       /** Form draft; `state.user` is the authenticated username. */
       username: "",
+
+      /** Whether callers are waiting for an interactive login that can be canceled. */
       cancellable: false,
+
+      /** Whether the modal dialog should be open. */
       dialog: false,
     };
 
