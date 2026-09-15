@@ -113,8 +113,10 @@ export const component = {
       dialog: false,
     };
 
-    let cancelGoogleLogin;
+    /** The current authentication token, or `null` when logged out. */
     let token = null;
+
+    let cancelGoogleLogin;
     let pendingLogin; // Shared promise for callers waiting on the login form
     // Incrementing invalidates older responses; it does not abort the HTTP request.
     let requestVersion = 0;
@@ -139,7 +141,7 @@ export const component = {
           provider: session.provider,
         };
       } catch {
-        // Discard malformed entries, including the old token-only storage format.
+        // Discard malformed session data.
         sessionStorageAccess("removeItem");
       }
     };
