@@ -67,11 +67,14 @@ function profile(app) {
     <button type="button" class="primary" data-on-click="logout" autofocus>
       ${escape(labels.logout)}
     </button>
-    ${state.provider === "ccm" && app.ui.html`<footer class="account-actions">
+    ${
+      state.provider === "ccm" &&
+      app.ui.html`<footer class="account-actions">
       <button type="button" class="delete-link" data-on-click="requestDelete">
         ${escape(labels.deleteAccount)}
       </button>
-    </footer>`}
+    </footer>`
+    }
   `;
 }
 
@@ -95,8 +98,11 @@ function authentication(app) {
   const { gui, labels } = app;
   const registering = gui.mode === "register";
   return app.ui.html`
-    ${app.google && app.ui.html`<button type="button" class="google-login secondary" data-on-click="google"
-      ${gui.busy && "disabled"}>${escape(app.labels.googleLogin)}</button>`}
+    ${
+      app.google &&
+      app.ui.html`<button type="button" class="google-login secondary" data-on-click="google"
+      ${gui.busy && "disabled"}>${escape(app.labels.googleLogin)}</button>`
+    }
     <form data-on-submit="submit">
       <fieldset ${gui.busy && "disabled"}>
         <label>
@@ -109,21 +115,27 @@ function authentication(app) {
           <input name="password" type="password"
                  autocomplete="${registering ? "new-password" : "current-password"}" required>
         </label>
-        ${registering && app.ui.html`
+        ${
+          registering &&
+          app.ui.html`
           <label>
             ${escape(labels.confirmation)}
             <input name="confirmation" type="password" autocomplete="new-password" required>
           </label>
-        `}
+        `
+        }
         ${message(app)}
         <button type="submit" class="primary">${escape(registering ? labels.register : labels.login)}</button>
       </fieldset>
     </form>
-    ${app.registration && app.ui.html`
+    ${
+      app.registration &&
+      app.ui.html`
       <button type="button" class="text-button" data-on-click="switchMode" ${gui.busy && "disabled"}>
         ${escape(registering ? labels.showLogin : labels.showRegister)}
       </button>
-    `}
+    `
+    }
   `;
 }
 
@@ -138,15 +150,21 @@ function message(app) {
 /** Renders trusted inline SVG configuration or an image URL. */
 function icon(app, name) {
   const source = app.icons[name].trim();
-  const content = /^<svg(?:\s|>)/i.test(source)
-    ? source
-    : app.ui.html`<img src="${escape(source)}" alt="" />`;
+  const content = /^<svg[\s>]/i.test(source) ? source : app.ui.html`<img src="${escape(source)}" alt="" />`;
   return app.ui.html`<span class="icon" aria-hidden="true">${content}</span>`;
 }
 
 /** Escapes text and quoted attribute values for ccm-ui templates. */
 function escape(value) {
-  return String(value ?? "").replace(/[&<>"']/g, character => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  })[character]);
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character],
+  );
 }
