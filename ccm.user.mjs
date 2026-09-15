@@ -488,6 +488,7 @@ export const component = {
       if (provider === "ccm") this.gui.username = credentials.user;
       this.gui.message = "";
       render();
+
       try {
         // Send registration data or provider credentials to the server for the configured realm.
         const params = operation === "register" ? { register: credentials } : { login: provider, credentials };
@@ -497,8 +498,10 @@ export const component = {
           method: "POST",
           params,
         });
+
         // A late response must not restore a session after logout or cancellation.
         if (version !== requestVersion) throw new DOMException(this.labels.loginCancelled, "AbortError");
+
         /**
          * User metadata assembled from the authentication result.
          * Local registration/login returns { key, token }; the other fields are already known.
@@ -510,6 +513,7 @@ export const component = {
           realm: provider === "ccm" ? this.realm : result?.realm,
           provider: provider === "ccm" ? provider : result?.provider,
         };
+
         // Accept the session only when its metadata, provider and token format are valid.
         if (
           !isValidIdentity(identity) ||
@@ -518,6 +522,7 @@ export const component = {
           !result.token
         )
           throw new Error(this.labels.invalidAuthenticationResponse);
+
         // Keep the session in memory and save it for page reloads if persistence is enabled.
         token = result.token;
         state = identity;
@@ -539,24 +544,25 @@ export const component = {
           render();
         }
       }
+
       /** Copy returned to callers so they cannot modify the private user metadata. */
-      const value = {
-        key: state.key,
-        user: state.user,
-        realm: state.realm,
-        provider: state.provider,
-      };
+      const value = this.getState();
+
       /** Callers waiting for the shared login dialog to complete. */
       const waiting = pendingLogin;
+
       // Clear the pending login and close the dialog now that authentication has succeeded.
       pendingLogin = null;
       this.gui.cancellable = false;
       this.gui.dialog = false;
+      render();
+
       // Interactive callers receive the session before extensions run.
       waiting?.resolve(value);
-      render();
+
       // Notify this instance's extensions and subscribed user instances of the completed action.
       await this.emit(operation);
+
       return value;
     };
 
