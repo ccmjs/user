@@ -79,6 +79,7 @@
   }
 
   /* The native modal uses the top layer; its contents adapt to its own width */
+
   dialog {
     inline-size: 27rem;
     max-inline-size: calc(100% - 2rem);
@@ -120,6 +121,14 @@
 
   .card {
     padding: 1.75rem;
+
+    &.fade-out {
+      animation: fade-out 120ms ease-in forwards;
+    }
+
+    &.fade-in {
+      animation: fade-in 180ms ease-out;
+    }
   }
 
   .dialog-header {
@@ -290,4 +299,20 @@
       padding: 1.1rem;
     }
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card.fade-out, .card.fade-in {
+      animation: none;
+    }
+  }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

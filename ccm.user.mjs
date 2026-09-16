@@ -343,11 +343,26 @@ export const component = {
           if (token) console.error(error);
         }
       },
-      switchMode: () => {
+      switchMode: async () => {
         if (this.gui.busy || !this.registration) return;
+        const card = this.element?.querySelector(".card");
+        if (card) {
+          // Finish fading out before replacing the form; ignore repeated clicks during the transition.
+          if (card.classList.contains("fade-out") || card.getAnimations().length) return;
+          card.classList.remove("fade-in");
+          card.classList.add("fade-out");
+          // With reduced motion or custom CSS without animations, there is nothing to wait for.
+          await Promise.allSettled(card.getAnimations().map((animation) => animation.finished));
+          // Closing the dialog or another render may have replaced this form in the meantime.
+          if (!card.isConnected || !this.gui.dialog || this.gui.busy) {
+            card.classList.remove("fade-out");
+            return;
+          }
+        }
         this.gui.mode = this.gui.mode === "login" ? "register" : "login";
         this.gui.message = "";
         render();
+        this.element?.querySelector(".card")?.classList.add("fade-in");
       },
       logout: () => this.logout().catch(console.error),
       cancel: (event) => {
