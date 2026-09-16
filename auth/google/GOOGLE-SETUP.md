@@ -50,23 +50,23 @@ python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
 Start the CCM server on port 8080 and visit `http://localhost:8000/`.
-The demo configuration opens the hosted GitHub Pages popup. To test
-the popup locally, set `google.url` to `http://localhost:8000/auth/google/google.html`.
-`google.popup` loads the popup adapter through `ccm.load`. Configure both `url` and
-`popup` when enabling Google login. Omit `google` or set it to `null` to disable Google login.
+The demo enables the Google extension and opens the hosted GitHub Pages popup.
+To test locally, set `google.url` to `"http://localhost:8000/auth/google/google.html"`
+in `resources/configs.mjs`. Omit the extension to disable Google login.
 The popup must be opened through the component, not directly.
 
-To test the hosted popup from a different website, configure:
+To use the extension from a different website:
 
 ```js
 await ccm.start("https://ccmjs.github.io/user/ccm.user.mjs", {
   url: "https://YOUR_CCM_SERVER",
-  google: {
-    url: "https://ccmjs.github.io/user/auth/google/google.html",
-    popup: ["ccm.load", "https://ccmjs.github.io/user/auth/google/google.mjs"],
-  },
+  extensions: [["ccm.load", "https://ccmjs.github.io/user/resources/extensions.mjs#google"]],
 }, document.querySelector("main"));
 ```
+
+The extension loads its popup adapter through a regular module import. Its default
+popup URL resolves relative to the extension module. Publish `resources/extensions.mjs`, `auth/google/extension.mjs` and
+`google.mjs` along with the hosted popup files.
 
 The embedding website does not need registration with Google. It must allow the
 popup and its communication with the opener. Restrictive sandbox or COOP policies
@@ -102,23 +102,26 @@ References:
 
 ## Popup labels
 
-Override popup text through `config.labels.googlePopup`, for example:
+Override Google-specific text under `config.google` (read only by the extension):
 
 ```javascript
-labels: {
-  googlePopup: {
-    language: "de",
-    title: "Mit Google anmelden",
-    heading: "Anmelden für",
-    retry: "Erneut versuchen",
-    loading: "Google-Anmeldung wird geladen …",
+google: {
+  labels: {
+    button: "Mit Google anmelden",
+    failed: "Google-Anmeldung fehlgeschlagen.",
+    popup: {
+      language: "de",
+      title: "Mit Google anmelden",
+      heading: "Anmelden für",
+      retry: "Erneut versuchen",
+      loading: "Google-Anmeldung wird geladen …",
+    },
   },
-},
+}
 ```
 
-All available keys and English defaults are directly in `config.labels.googlePopup`
-in `ccm.user.mjs`. CCM merges overrides with these defaults. Labels are sent through the validated opener handshake and
-inserted as plain text. Before that handshake, the page uses English defaults,
-including errors when opened directly. `language` sets the page language and the
-Google button locale; Google's own account selection and consent screens remain
-controlled by Google.
+All keys and English defaults are in `defaults` in `extension.mjs`. The factory
+merges partial label overrides, including nested popup labels. Labels travel through
+the validated opener handshake and are inserted as plain text. Before that handshake,
+the page uses English fallback text. `language` sets the page language and Google
+button locale; Google's account selection and consent screens remain controlled by Google.

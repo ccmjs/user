@@ -15,7 +15,7 @@ function create(parent = null, config = {}) {
     ui: { render() { calls.renders++; } },
     views: { main: () => "" },
     element: { querySelector: () => null, replaceChildren() { calls.cleared++; } },
-    extensions: [event => calls.events.push(event)],
+    extensions: [event => { if (event.type !== "cancel" && event.type !== "render") calls.events.push(event); }],
   }, config);
   host.user = app;
   return { app, host, calls };
@@ -184,7 +184,7 @@ test("separate module versions delegate through the public interface and retain 
   assert.equal(events[0].type, "login");
   await root.app.logout();
   assert.equal(child.getState(), null);
-  assert.equal(events[1].type, "logout");
+  assert.deepEqual(events.map(event => event.type), ["login", "cancel", "logout"]);
 });
 
 test("subscribers can unsubscribe without affecting application extensions", async () => {

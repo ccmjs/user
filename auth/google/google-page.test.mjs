@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
-import { component } from "../../ccm.user.mjs";
+import { defaults } from "./extension.mjs";
 
 test("hosted page requires validated opener handshake before automatically loading Google", async () => {
   const elements = new Map();
@@ -30,7 +30,7 @@ test("hosted page requires validated opener handshake before automatically loadi
   receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', labels: {} } });
   assert.equal(scripts.length, 0);
   assert.match(element('#message').textContent, /Please open this page/);
-  receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', labels: { ...component.config.labels.googlePopup, heading: '<b>Anmelden für</b>', loading: 'Wird geladen …', language: 'de' } } });
+  receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', labels: { ...defaults.labels.popup, heading: '<b>Anmelden für</b>', loading: 'Wird geladen …', language: 'de' } } });
   assert.equal(scripts.length, 1);
   assert.equal(context.document.title, 'Sign in with Google');
   assert.equal(element('#heading').textContent, '<b>Anmelden für</b>');
@@ -41,7 +41,7 @@ test("hosted page requires validated opener handshake before automatically loadi
   scripts[0].onerror();
   assert.equal(scripts[0].removed, true);
   assert.equal(element('#retry').hidden, false);
-  assert.equal(element('#message').textContent, component.config.labels.googlePopup.loadFailed);
+  assert.equal(element('#message').textContent, defaults.labels.popup.loadFailed);
   element('#retry').click();
   assert.equal(scripts.length, 2);
   assert.equal(element('#retry').hidden, true);

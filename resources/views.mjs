@@ -94,17 +94,13 @@ function deletion(app) {
   `;
 }
 
-/** Creates the local login or registration form, offering Google only in login mode when configured. */
+/** Creates the local form with an extension slot for external providers in login mode. */
 function authentication(app) {
   const { gui, labels } = app;
   const registering = gui.mode === "register";
   return app.ui.html`
-    ${
-      !registering && app.google &&
-      app.ui.html`<button type="button" class="google-login secondary" data-on-click="google"
-      ${gui.busy && "disabled"}>${escape(labels.googleLogin)}</button>
-      <div class="auth-divider">${escape(labels.or)}</div>`
-    }
+    ${!registering && app.ui.html`<div class="auth-providers" data-auth-providers></div>
+      <div class="auth-divider">${escape(labels.or)}</div>`}
     <form data-on-submit="submit">
       <fieldset ${gui.busy && "disabled"}>
         <label>

@@ -9,7 +9,7 @@ Serve this directory, for example with
 `python3 -m http.server 8000 --bind 127.0.0.1`.
 Start ccm-server on port 8080 and open `http://localhost:8000/`.
 
-The demo and component use the bundled `libs/ccmjs/ccm.js`. Views and CSS resolve
+The demo and component use the bundled `libs/framework/ccm.js`. Views and CSS resolve
 relative to the component module URL.
 The page loads `demo` from `resources/configs.mjs`, enabling registration and Google
 authentication. Change `url` there to use another server.
@@ -19,7 +19,7 @@ authentication. Change `url` there to use another server.
 ```javascript
 const user = await ccm.start("./ccm.user.mjs", {
   url: "http://localhost:8080",
-  extensions: [({ app, type }) => console.log(type, app.getState())],
+  extensions: [({app, type}) => console.log(type, app.getState())],
 }, document.querySelector("main"));
 
 // Resolves after successful interactive authentication; cancellation rejects
@@ -43,21 +43,21 @@ when ending observation or changing users.
 
 ## Public methods
 
-| Method | Result |
-| --- | --- |
-| `start()` | Renders the current state without discarding the session |
-| `login()` | Opens the form and waits for successful authentication |
-| `login({ user, password })` | Logs in with supplied credentials |
-| `login({ idToken }, "google")` | Logs in with a Google ID token verified by the server |
-| `register()` | Opens the registration form and waits for success |
-| `register({ user, password })` | Creates an account and logs in |
-| `deleteAccount()` | Marks the authenticated account as deleted and signs out after success |
-| `logout()` | Discards the session and cancels pending interactive authentication |
-| `isLoggedIn()` | Whether the instance currently holds a token |
-| `getState()` | Copy of user metadata or `null` |
-| `getToken()` | JWT or `null` |
-| `getSessionOwner()` | Highest matching user instance responsible for the shared session |
-| `emit(type)` | Runs configured extensions sequentially with `{ app, type }` |
+| Method                         | Result                                                                 |
+|--------------------------------|------------------------------------------------------------------------|
+| `start()`                      | Renders the current state without discarding the session               |
+| `login()`                      | Opens the form and waits for successful authentication                 |
+| `login({ user, password })`    | Logs in with supplied credentials                                      |
+| `login({ idToken }, "google")` | Logs in with a Google ID token verified by the server                  |
+| `register()`                   | Opens the registration form and waits for success                      |
+| `register({ user, password })` | Creates an account and logs in                                         |
+| `deleteAccount()`              | Marks the authenticated account as deleted and signs out after success |
+| `logout()`                     | Discards the session and cancels pending interactive authentication    |
+| `isLoggedIn()`                 | Whether the instance currently holds a token                           |
+| `getState()`                   | Copy of user metadata or `null`                                        |
+| `getToken()`                   | JWT or `null`                                                          |
+| `getSessionOwner()`            | Highest matching user instance responsible for the shared session      |
+| `emit(type)`                   | Runs configured extensions sequentially with `{ app, type }`           |
 
 Interactive cancellation rejects with `AbortError`. Invalid credentials leave
 the form open for another attempt. A successful registration satisfies a pending
@@ -69,21 +69,26 @@ Configuration is documented directly in `ccm.user.mjs`. Override `labels`,
 `icons`, `views` or `css` to customize the interface. `registration: false` hides and
 disables registration in this component; it does not disable the server endpoint.
 `extensions` accepts a function or an array of functions receiving `{ app, type }`.
-`app.emit(type)` awaits them sequentially in configuration order. Events are
+Handlers should select the event types they handle; UI hooks are described below.
+For authentication events, `app.emit(type)` awaits them sequentially in configuration order. These events are
 `login`, `register`, `logout` and `deleteAccount`, emitted after the successful
 action (deletion emits `logout` first). User metadata is available in `app.getState()`.
 An extension error stops dispatch and rejects the operation awaiting `emit`; completed
 state changes are not rolled back. If a logout extension fails during deletion,
 the subsequent `deleteAccount` event is not emitted.
 
-`icons.login`, `icons.user` and `icons.close` accept complete inline SVG markup
-(starting with `<svg`) or an image URL (SVG, PNG, JPG). Formats can be mixed:
+`icons.login`, `icons.user` and `icons.close` accept complete inline SVG markup (starting with `<svg`) or an image URL
+(SVG, PNG, JPG). Formats can be mixed:
 
 ```js
 icons: {
   login: "./resources/login.svg",
-  user: "./resources/avatar.png",
-  close: '<svg viewBox="0 0 24 24" stroke="currentColor"><path d="M6 6l12 12M6 18L18 6"/></svg>',
+      user
+:
+  "./resources/avatar.png",
+      close
+:
+  '<svg viewBox="0 0 24 24" stroke="currentColor"><path d="M6 6l12 12M6 18L18 6"/></svg>',
 }
 ```
 
@@ -141,7 +146,8 @@ Configuration defines component options. User metadata remains private.
 `UserIdentity` with `key`, `user`, `realm`, `provider` and an optional `picture` when logged in.
 Changing the returned object does not change the session. The separate `app.gui`
 object contains transient GUI state: `mode`, `busy`, `message`, `username` and `dialog`.
-Views read metadata through `getState()` and GUI state through `app.gui`. Persisting GUI state is a separate, explicit concern.
+Views read metadata through `getState()` and GUI state through `app.gui`. Persisting GUI state is a separate, explicit
+concern.
 The token, pending authentication promise and request version counter also remain
 private. Read the token through `getToken()`.
 
@@ -192,7 +198,6 @@ Logout and dialog cancellation advance `requestVersion`. Responses from older
 requests cannot restore a discarded session or overwrite a newer form state.
 This invalidates results locally; it does not cancel the request on the server.
 
-
 ## Separate user areas
 
 Set `realm: "tea-app"` alongside the absolute server `url` to use accounts in
@@ -205,7 +210,6 @@ A dataset's owner identity is `${user.getState().realm}:${user.getState().key}`.
 a protected dataset, pass `_` with the desired read/write/delete grants; the server
 sets its owner from your JWT. Public datasets without `_` cannot be claimed later.
 
-
 ## User instances in a component hierarchy
 
 Each application component can keep its own `config.user` instance. During `init()`,
@@ -217,7 +221,7 @@ independent too. Parent relationships and configuration must be established befo
 initialization; changing the hierarchy afterward does not rebind sessions.
 
 Only the session owner renders its UI and accesses sessionStorage. Its configuration
-controls registration, Google login and session persistence. Child user instances
+controls registration, authentication extensions and session persistence. Child user instances
 forward login, registration, logout, account deletion and token access. Their
 `getState()` delegates to the owner and returns a copy of its metadata, or `null`
 after logout. Their own GUI state is unused.
@@ -233,7 +237,6 @@ on a child invokes its own extensions and listeners. Restoration emits no login 
 from different user instances. They share one logout/login attempt and one pending
 interactive login promise, without canceling each other's dialogs.
 
-
 Version-independent cooperation uses the public `subscribe(listener)` and
 `getSessionOwner()` methods, together with the authentication methods above.
 `subscribe` receives event types and returns an unsubscribe function. Child instances
@@ -242,3 +245,49 @@ own `emit()`. No module-level registry or global browser state is needed. Differ
 module versions can cooperate if they implement this interface; older versions
 without it remain independent. Applications continue to use only `config.user`
 and `extensions` and do not need to call these coordination methods themselves.
+
+## External authentication extensions
+
+The component has no Google-specific configuration or UI. Enable Google by adding
+its extension (the demo already does this):
+
+```javascript
+const config = {
+  extensions: [["ccm.load", "././resources/extensions.mjs#google"]],
+  google: {
+    url: "https://ccmjs.github.io/user/auth/google/google.html",
+    labels: {button: "Sign in with Google"},
+  },
+};
+```
+
+`resources/extensions.mjs` exports event handlers loaded through CCM dependencies,
+following the same convention as the quiz component. Only the Google extension reads
+`config.google`; the user component itself does not interpret these settings.
+The extension creates a handler per instance on first use, preserving its popup state
+across subsequent events. Omit the extension to disable Google login.
+The Google setup guide documents nested popup label overrides.
+
+Other providers can use the same public extension contract:
+
+- `render` supplies `{ app, type }` after the dialog is updated.
+  Add buttons to `app.element.querySelector("[data-auth-providers]")`. The default view
+  provides this slot only in login mode. Check `app.gui.dialog` and `app.isLoggedIn()`;
+  render events also occur while the dialog is closed. Custom views must provide
+  the slot if they support external login. Append without replacing other extensions' buttons.
+- `cancel` runs when the dialog is dismissed or `logout()` begins. Cancel outstanding
+  provider work and ignore late results.
+- All events await extensions sequentially and then reach subscribed child instances.
+  Provider extensions ignore child instances using `app.getSessionOwner() !== app`.
+  An extension error stops further dispatch. Rendering and cancellation report hook
+  errors to the console; `start()` waits for the render hooks to finish.
+- Set `app.gui.busy` while collecting external credentials, update `app.gui.message`
+  for errors, and call `app.start()` to refresh the UI. Clear busy before calling
+  `app.login(credentials, provider)`. The server validates provider credentials and
+  returns `{ key, user, realm, provider, token }` and optionally `picture`.
+
+An extension manages its own pending operations, keyed by user instance when the
+same extension function is reused. Only the session owner's extensions add UI.
+The generic divider and button layout belong to the component; provider branding,
+labels and popup behavior belong to the extension. MIA can follow this contract
+without another provider-specific branch in the user component.

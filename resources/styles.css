@@ -116,9 +116,18 @@
     }
   }
 
-  .google-login {
-    inline-size: 100%;
-    min-block-size: 2.5rem;
+  .auth-providers {
+    display: grid;
+    gap: .75rem;
+
+    &:empty, &:empty + .auth-divider {
+      display: none;
+    }
+
+    > button {
+      inline-size: 100%;
+      min-block-size: 2.5rem;
+    }
   }
 
   .auth-divider {

@@ -28,7 +28,7 @@ test("register, token access, metadata and logout", async () => {
   const { app } = create(async request => {
     requests.push(request);
     return { key: "account", token: "jwt" };
-  }, { extensions: [event => events.push(event.type)] });
+  }, { extensions: [event => { if (event.type !== "cancel") events.push(event.type); }] });
   assert.equal(app.getToken(), null);
   assert.equal(app.getState(), null);
   const value = await app.register({ user: "André", password: "secret" });
@@ -159,12 +159,13 @@ test("extensions run sequentially with the component and event type", async () =
     ? true : { key: "account", token: "jwt" }, {
     extensions: [
       async event => {
+        if (event.type === "cancel") return;
         assert.deepEqual(Object.keys(event).sort(), ["app", "type"]);
         assert.equal(event.app, app);
         await Promise.resolve();
         events.push(`first:${event.type}`);
       },
-      ({ type }) => events.push(`second:${type}`),
+      ({ type }) => { if (type !== "cancel") events.push(`second:${type}`); },
     ],
   });
   await app.login({ user: "a", password: "pw" });
@@ -366,7 +367,7 @@ test("invalid credentials and duplicate requests never reach the server", async 
   });
   for (const [credentials, provider] of [
     [{}, "ccm"], [{ user: "a", password: 123 }, "ccm"],
-    [{}, "google"], [{ idToken: "" }, "google"],
+    [[], "external"], ["invalid", "external"],
   ]) await assert.rejects(app.login(credentials, provider), TypeError);
   assert.equal(calls, 0);
   const pending = app.login({ user: "a", password: "pw" });
@@ -400,23 +401,63 @@ test("interactive login resolves even when a subsequent extension fails", async 
   assert.equal(app.isLoggedIn(), true);
 });
 
-test("views escape user text and offer Google only in login mode", async () => {
+test("views escape user text and offer a provider slot only in login mode", async () => {
   const views = await import("../resources/views.mjs");
-  const { app } = create(undefined, { google: {} });
+  const { app } = create();
   app.ui.html = (parts, ...values) => parts.reduce((text, part, i) =>
     text + part + (values[i] === false || values[i] == null ? "" : values[i]), "");
   app.gui.username = '\"><img src=x onerror=alert(1)>';
   const login = views.dialog(app);
-  assert.match(login, /data-on-click="google"/);
+  assert.match(login, /data-auth-providers/);
   assert.match(login, /class="auth-divider"/);
   assert.doesNotMatch(login, /<img src=x/);
   assert.match(login, /&quot;&gt;&lt;img/);
   app.gui.mode = "register";
   const registration = views.dialog(app);
-  assert.doesNotMatch(registration, /data-on-click="google"|class="auth-divider"/);
+  assert.doesNotMatch(registration, /data-auth-providers|class="auth-divider"/);
   assert.match(registration, /name="confirmation"/);
   await app.login({ user: "<script>alert(1)</script>", password: "pw" });
   assert.doesNotMatch(views.trigger(app), /<script>/);
   assert.doesNotMatch(views.dialog(app), /<script>/);
   assert.match(views.trigger(app), /&lt;script&gt;/);
+});
+
+test("external credentials are provider-defined and pass unchanged to the server", async () => {
+  const credentials = { code: "authorization-code", verifier: "proof-key" };
+  const { app } = create(async request => {
+    assert.deepEqual(request.params, { login: "campus", credentials, realm: "ccm" });
+    return { key: "campus_user", user: "Person", realm: "ccm", provider: "campus", token: "jwt" };
+  });
+  assert.equal((await app.login(credentials, "campus")).provider, "campus");
+});
+
+test("UI events await extensions in order and stop dispatch on errors", async () => {
+  const calls = [];
+  let finish;
+  const failure = new Error("UI hook failed");
+  const { app } = create(undefined, { extensions: [
+    () => { calls.push("first"); return new Promise(resolve => { finish = resolve; }); },
+    () => { calls.push("second"); throw failure; },
+    () => calls.push("third"),
+  ] });
+  const subscribers = [];
+  app.subscribe(type => subscribers.push(type));
+  const emitted = app.emit("cancel");
+  assert.deepEqual(calls, ["first"]);
+  finish();
+  await assert.rejects(emitted, error => error === failure);
+  assert.deepEqual(calls, ["first", "second"]);
+  assert.deepEqual(subscribers, []);
+});
+
+test("UI events reach listeners after extensions with the same event payload", async () => {
+  const calls = [];
+  const { app } = create(undefined, { extensions: [null, async event => {
+    await Promise.resolve();
+    assert.deepEqual(event, { app, type: "render" });
+    calls.push("extension");
+  }] });
+  app.subscribe(type => calls.push(type));
+  await app.emit("render");
+  assert.deepEqual(calls, ["extension", "render"]);
 });

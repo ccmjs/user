@@ -22,12 +22,6 @@ export const component = {
     // Component styles (CSS)
     css: ["ccm.load", "././resources/styles.css"],
 
-    // Google authentication
-    // google: {
-    //   url: "https://ccmjs.github.io/user/auth/google/google.html",
-    //   popup: ["ccm.load", "././auth/google/google.mjs"],
-    // },
-
     // Whether the registration form is available
     // registration: true,
 
@@ -49,18 +43,6 @@ export const component = {
 
     // Static UI labels
     labels: {
-      googlePopup: {
-        language: "en",
-        title: "Sign in with Google",
-        heading: "Sign in for",
-        retry: "Try again",
-        loading: "Loading Google sign-in …",
-        transferring: "Returning sign-in to the website …",
-        loadFailed: "Google could not be loaded. Please try again.",
-        invalidURL: "An HTTPS address is required (HTTP is allowed locally).",
-        invalidRequest: "Please open this page using the user component's Google button.",
-        missingClientId: "The Google client ID is missing in auth/google/google-config.mjs.",
-      },
       title: "Sign in",
       profile: "Your profile",
       userId: "User ID",
@@ -96,12 +78,8 @@ export const component = {
       invalidAuthenticationResponse: "Invalid authentication response.",
       deletionRequiresLogin: "Sign in before deleting your account.",
       requestBusy: "A request is already in progress.",
-      googleFailed: "Google sign-in failed. Please try again.",
-      googleLogin: "Sign in with Google",
       or: "or",
-      googlePopupBlocked: "Please allow the login popup and try again.",
-      googleTimeout: "Google sign-in timed out. Please try again.",
-      invalidProviderCredentials: "An ID token is required for provider login.",
+      invalidProviderCredentials: "Provider credentials must be an object.",
       invalidDeletionResponse: "Invalid account deletion response.",
     },
   },
@@ -117,7 +95,7 @@ export const component = {
       /** Active view: login, register, profile or delete. */
       mode: "login",
 
-      /** Whether an authentication or account deletion request is in progress. */
+      /** Whether authentication (including an external provider) or account deletion is in progress. */
       busy: false,
 
       /** Message displayed in the dialog; empty when there is no message. */
@@ -141,9 +119,6 @@ export const component = {
 
     /** Event listeners used by dependent user instances, including other module versions. */
     const listeners = new Set();
-
-    /** Cancels the current Google login popup, if any. */
-    let cancelGoogleLogin;
 
     /** Shared promise and callbacks for callers waiting on the login form. */
     let pendingLogin;
@@ -195,7 +170,7 @@ export const component = {
     /**
      * Logs in with credentials, or waits for an interactive login.
      *
-     * @param {{user: string, password: string}|{idToken: string}} [credentials]
+     * @param {{user: string, password: string}|Object} [credentials]
      * @param {string} [provider="ccm"] - Authentication method for supplied credentials
      * @returns {Promise<UserIdentity>} User metadata
      */
@@ -218,7 +193,6 @@ export const component = {
 
     /** Discards the session and cancels a pending interactive login. */
     this.logout = async () => {
-      cancelGoogleLogin?.();
       requestVersion++;
       this.gui.busy = false;
       const changed = token !== null;
@@ -230,6 +204,7 @@ export const component = {
       this.gui.mode = "login";
       this.gui.dialog = false;
       cancelPendingLogin();
+      await this.emit("cancel").catch(console.error);
       render();
       if (changed) await this.emit("logout");
     };
@@ -279,33 +254,6 @@ export const component = {
     this.events = {
       /** Reveals the standard icon beneath a profile image that could not be loaded. */
       hideProfilePicture: (event) => event.currentTarget.remove(),
-
-      /** Opens the Google popup and exchanges its result for a CCM session. */
-      google: async () => {
-        if (!this.google || this.gui.busy) return;
-        const version = requestVersion;
-        // Open directly from the click so browsers allow the popup.
-        const popup = this.google.popup.login(this);
-        cancelGoogleLogin = popup.cancel;
-        this.gui.busy = true;
-        this.gui.message = "";
-        render();
-        try {
-          const credentials = await popup.promise;
-          if (version !== requestVersion) return;
-          this.gui.busy = false;
-          await this.login(credentials, "google");
-        } catch (error) {
-          if (version !== requestVersion) return;
-          this.gui.message = error.name === "AbortError" ? "" : this.labels.googleFailed;
-        } finally {
-          if (cancelGoogleLogin === popup.cancel) cancelGoogleLogin = null;
-          if (version === requestVersion) {
-            this.gui.busy = false;
-            render();
-          }
-        }
-      },
 
       /** Opens the profile when signed in, otherwise starts an interactive login. */
       open: () => {
@@ -402,7 +350,7 @@ export const component = {
       cancel: (event) => {
         event?.preventDefault();
         if (this.gui.busy && this.gui.mode === "delete") return;
-        cancelGoogleLogin?.();
+        this.emit("cancel").catch(console.error);
         this.gui.dialog = false;
         requestVersion++;
         this.gui.busy = false;
@@ -413,9 +361,8 @@ export const component = {
     };
 
     /**
-     * Runs extensions sequentially with { app, type } after successful actions.
-     * Events: login, register, logout, deleteAccount (after logout).
-     * Errors stop dispatch and propagate; completed state changes remain applied.
+     * Dispatches events sequentially; errors stop dispatch without reverting state.
+     * @param {string} type - login, register, logout, deleteAccount, render or cancel
      */
     this.emit = async (type) => {
       const extensions = [].concat(this.extensions || []);
@@ -502,6 +449,7 @@ export const component = {
       if (!dialog) return;
       this.ui.render(this.views.trigger(this), this.element.querySelector("[data-user-trigger]"), this);
       this.ui.render(this.views.dialog(this), dialog, this);
+
       if (this.gui.dialog) {
         if (!dialog.open) dialog.showModal();
         if (!this.gui.busy) {
@@ -514,26 +462,27 @@ export const component = {
         dialog.close();
         this.element.querySelector("[data-user-trigger] button")?.focus();
       }
+      return this.emit("render").catch(console.error);
     };
 
     /**
      * Authenticates supplied credentials and completes any waiting interactive login.
      * @param {"login"|"register"} operation - Server operation to perform
-     * @param {{user: string, password: string}|{idToken: string}} credentials - Local credentials or provider ID token
+     * @param {{user: string, password: string}|Object} credentials - Local credentials or an external provider's proof of authentication
      * @param {string} [provider="ccm"] - Authentication provider; registration uses ccm
      * @returns {Promise<UserIdentity>} Copy of the authenticated user metadata
      */
     const authenticate = async (operation, credentials, provider = "ccm") => {
-      // Reject another authentication attempt while a request or Google popup is active.
+      // Reject another authentication attempt while authentication is already in progress.
       if (this.gui.busy) throw new Error(this.labels.authenticationBusy);
 
-      // Local authentication requires a username and password; other providers require an ID token.
+      // Local authentication requires a username and password; external credentials are verified by the server.
       if (
         provider === "ccm" &&
         (!credentials || typeof credentials.user !== "string" || typeof credentials.password !== "string")
       )
         throw new TypeError(this.labels.invalidCredentials);
-      if (provider !== "ccm" && (!credentials || typeof credentials.idToken !== "string" || !credentials.idToken))
+      if (provider !== "ccm" && (!credentials || typeof credentials !== "object" || Array.isArray(credentials)))
         throw new TypeError(this.labels.invalidProviderCredentials);
 
       /** Request counter value used to detect whether this login attempt was canceled or superseded. */
@@ -561,7 +510,7 @@ export const component = {
         /**
          * User metadata assembled from the authentication result.
          * Local registration/login returns { key, token }; the other fields are already known.
-         * Google login also returns { user, realm, provider } and optionally a profile picture URL.
+         * External login also returns { user, realm, provider } and optionally a profile picture URL.
          */
         const identity = {
           key: result?.key,
@@ -588,7 +537,7 @@ export const component = {
       } catch (error) {
         // Show a configured error message only if this attempt still controls the form.
         if (version === requestVersion) {
-          if (provider !== "ccm") this.gui.message = this.labels.googleFailed;
+          if (provider !== "ccm") this.gui.message = this.labels.failed;
           else if (error.status === 401) this.gui.message = this.labels.invalid;
           else if (error.status === 409) this.gui.message = this.labels.duplicate;
           else if (operation === "register") this.gui.message = this.labels.registrationFailed;
@@ -657,6 +606,6 @@ export const component = {
  * @property {string} key - Unique account key within the realm
  * @property {string} user - Display name or local username
  * @property {string} realm - Independent user area
- * @property {string} provider - Authentication provider, e.g. "ccm" or "google"
+ * @property {string} provider - Authentication provider, e.g. "ccm" or an external provider identifier
  * @property {string} [picture] - Optional HTTPS profile picture URL from the authentication provider
  */

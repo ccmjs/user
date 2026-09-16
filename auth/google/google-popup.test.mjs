@@ -14,7 +14,7 @@ test("popup accepts only its own origin, window and request and cleans up", asyn
     addEventListener(type, fn) { receive = fn; },
     removeEventListener() { receive = null; },
   };
-  const operation = login({ google: { url: "https://login.example/auth/google/google.html" }, url: "https://server.example", labels: { googlePopup: { heading: "Anmelden für" } } });
+  const operation = login({ url: "https://login.example/auth/google/google.html", labels: { popup: { heading: "Anmelden für" } } });
   const request = new URLSearchParams(opened.hash.slice(1)).get("request");
   const data = { type: "ccm-google-result", request, idToken: "proof" };
   receive({ origin: "https://wrong.example", source: popup, data });
@@ -51,8 +51,8 @@ test("blocked, closed, cancelled and timed-out popups reject without leaving lis
       globalThis.setInterval = callback => { timers.set("poll", callback); return "poll"; };
       globalThis.setTimeout = callback => { timers.set("timeout", callback); return "timeout"; };
       globalThis.clearInterval = globalThis.clearTimeout = id => timers.delete(id);
-      const operation = login({ google: { url: "https://login.example/google.html" }, labels: {
-        googlePopupBlocked: "Blocked", googleTimeout: "Timed out", loginCancelled: "Cancelled",
+      const operation = login({ url: "https://login.example/google.html", labels: {
+        popupBlocked: "Blocked", timeout: "Timed out", cancelled: "Cancelled",
       } });
       const rejected = assert.rejects(operation.promise, reason === "blocked" ? /Blocked/
         : reason === "timeout" ? /Timed out/ : { name: "AbortError" });
