@@ -19,15 +19,15 @@ test("hosted page requires validated opener handshake before automatically loadi
     document: { documentElement: {}, querySelector: element, createElement() { return {}; }, head: { append(script) { scripts.push(script); } } },
     google: { accounts: { id: { initialize(value) { options = value; }, renderButton() {} } } },
   };
-  const source = (await readFile(new URL('./google-page.mjs', import.meta.url), 'utf8')).replace('import { component } from "../../ccm.user.mjs";', '').replace('import { clientId } from "./google-config.mjs";', '');
+  const source = (await readFile(new URL('./google-page.mjs', import.meta.url), 'utf8')).replace('import { clientId } from "./google-config.mjs";', '');
   vm.runInNewContext(source, context);
   assert.equal(scripts.length, 0);
-  receive({ source: {}, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', server: 'https://server.example' } });
+  receive({ source: {}, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test' } });
   assert.equal(scripts.length, 0);
-  receive({ source: opener, origin: 'https://wrong.example', data: { type: 'ccm-google-init', request: 'test', server: 'https://server.example' } });
-  receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'wrong', server: 'https://server.example' } });
+  receive({ source: opener, origin: 'https://wrong.example', data: { type: 'ccm-google-init', request: 'test' } });
+  receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'wrong' } });
   assert.equal(scripts.length, 0);
-  receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', server: 'https://server.example', labels: { ...component.config.labels.googlePopup, heading: '<b>Anmelden für</b>', loading: 'Wird geladen …', language: 'de' } } });
+  receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', labels: { ...component.config.labels.googlePopup, heading: '<b>Anmelden für</b>', loading: 'Wird geladen …', language: 'de' } } });
   assert.equal(scripts.length, 1);
   assert.equal(context.document.title, 'Sign in with Google');
   assert.equal(element('#heading').textContent, '<b>Anmelden für</b>');

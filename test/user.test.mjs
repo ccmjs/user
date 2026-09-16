@@ -69,13 +69,13 @@ test("interactive login waits for successful form submission after an error", as
   });
   const waiting = app.login();
   assert.equal(waiting, app.login());
-  assert.equal(app.gui.cancellable, true);
+  assert.equal(app.gui.dialog, true);
   await submit(app, { user: "a", password: "wrong" });
   assert.equal(view().message, app.labels.invalid);
   assert.equal(app.isLoggedIn(), false);
   await submit(app, { user: "a", password: "right" });
   assert.equal((await waiting).key, "account");
-  assert.equal(app.gui.cancellable, false);
+  assert.equal(app.gui.dialog, false);
   assert.equal(app.getToken(), "jwt");
 });
 

@@ -1,6 +1,6 @@
 # ccmjs User Component
 
-A user component for the local `ccm` authentication provider of ccm-server.
+A user component for local `ccm` and Google authentication with ccm-server.
 It provides registration, login and logout without a build step.
 
 ## Local demo
@@ -9,8 +9,8 @@ Serve this directory, for example with
 `python3 -m http.server 8000 --bind 127.0.0.1`.
 Start ccm-server on port 8080 and open `http://localhost:8000/`.
 
-The demo loads the bundled `libs/ccmjs/ccm.js`. The component declares the public
-framework URL and resolves its views and CSS relative to its own module URL.
+The demo and component use the bundled `libs/ccmjs/ccm.js`. Views and CSS resolve
+relative to the component module URL.
 The page loads `demo` from `resources/configs.mjs`, enabling registration and Google
 authentication. Change `url` there to use another server.
 
@@ -95,7 +95,7 @@ Inline markup is trusted developer configuration, not sanitized user input.
 By default, `session: true` saves the CCM JWT and public user metadata in
 `sessionStorage`, so login survives reloads in the same tab. During `ready()`, the
 component restores this cached session locally, without a server request or a new
-`login` event. Malformed entries and the old token-only format are discarded.
+`login` event. Malformed entries are discarded.
 The displayed login is provisional: token expiration and account deletion are
 checked on the next authenticated server request. A datastore configured with this
 user component then performs the framework's one re-login attempt on 401/403.
@@ -135,11 +135,10 @@ Dynamic text and quoted attribute values are escaped before interpolation.
 
 Configuration defines component options. User metadata remains private.
 `app.getState()` returns `null` when logged out or a copy of the complete
-`UserIdentity` with `key`, `user`, `realm` and `provider` when logged in.
+`UserIdentity` with `key`, `user`, `realm`, `provider` and an optional `picture` when logged in.
 Changing the returned object does not change the session. The separate `app.gui`
-object contains transient GUI state: `mode`, `busy`, `message`, `username`,
-`cancellable` and `dialog`. Views read metadata through `getState()` and GUI
-state through `app.gui`. Persisting GUI state is a separate, explicit concern.
+object contains transient GUI state: `mode`, `busy`, `message`, `username` and `dialog`.
+Views read metadata through `getState()` and GUI state through `app.gui`. Persisting GUI state is a separate, explicit concern.
 The token, pending authentication promise and request version counter also remain
 private. Read the token through `getToken()`.
 
@@ -151,9 +150,15 @@ The header button fits its embedding area; the modal content adapts to its own w
 
 Initially only a compact sign-in button with an icon is shown. Clicking it opens
 the native modal dialog. After authentication it closes and the header displays
-a user icon with the username. Clicking this opens the profile with the username,
+the profile picture or user icon with the username. Clicking this opens the profile with the username,
 user ID, provider, sign-out action and a discreet delete-account action.
-Custom user images and profile editing are not implemented yet.
+Profile editing and image uploads are not implemented.
+
+Google sign-in can supply an optional `picture` URL in `getState()`. The trigger and profile
+show this image instead of the standard user icon, falling back to the icon if
+loading fails. The URL is cached with the session; loading the image makes an
+HTTPS request to its host without sending the page URL as a referrer. No additional
+Google permissions are requested.
 
 Escape or the close button dismisses the modal. Dismissing an interactive login
 rejects its promise with `AbortError`; dismissing the profile keeps the session.
@@ -167,7 +172,6 @@ the account data is retained. Its username can be registered again immediately,
 creating a new account with a new key. The old account can
 no longer log in, its tokens are rejected on subsequent requests, and its observe
 subscriptions on this server are removed. Other application data is unchanged.
-The updated ccm-server must be restarted to enable the delete-account endpoint.
 
 ## Reading the implementation
 
@@ -193,8 +197,6 @@ Set `realm: "tea-app"` alongside the absolute server `url` to use accounts in
 1–32 lowercase letters, digits, underscores or hyphens, beginning with a letter.
 `state.realm` identifies this user area; `state.provider` identifies the sign-in
 method (`ccm` or `google`). Google can be used within any realm.
-`sessionKey` is replaced by `realm`; existing browser sessions require one new login.
-Existing server accounts require the migration documented in the server README.
 
 A dataset's owner identity is `${user.getState().realm}:${user.getState().key}`. When creating
 a protected dataset, pass `_` with the desired read/write/delete grants; the server
@@ -237,10 +239,3 @@ own `emit()`. No module-level registry or global browser state is needed. Differ
 module versions can cooperate if they implement this interface; older versions
 without it remain independent. Applications continue to use only `config.user`
 and `extensions` and do not need to call these coordination methods themselves.
-
-
-Google sign-in can supply an optional `picture` URL in `getState()`. The trigger
-shows this image instead of the standard user icon, falling back to the icon if
-loading fails. The URL is cached with the session; loading the image makes an
-HTTPS request to its host without sending the page URL as a referrer. No additional
-Google permissions are requested.

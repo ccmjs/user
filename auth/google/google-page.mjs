@@ -46,13 +46,11 @@ try {
     try {
       // The component supplies its complete labels after CCM has merged configuration overrides.
       const received = event.data.labels;
-      if (!["language", "title", "heading", "retry", "waiting", "loading", "transferring", "loadFailed",
+      if (!["language", "title", "heading", "retry", "loading", "transferring", "loadFailed",
         "invalidURL", "invalidRequest", "missingClientId"].every(key => typeof received?.[key] === "string"))
         throw new Error(labels.invalidRequest);
       labels = received;
       applyLabels();
-      message.textContent = labels.waiting;
-      allowedURL(event.data.server);
       initialized = true;
       if (!clientId) throw new Error(labels.missingClientId);
       loadGoogle();

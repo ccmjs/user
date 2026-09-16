@@ -54,7 +54,6 @@ export const component = {
         title: "Sign in with Google",
         heading: "Sign in for",
         retry: "Try again",
-        waiting: "Waiting for the requesting website …",
         loading: "Loading Google sign-in …",
         transferring: "Returning sign-in to the website …",
         loadFailed: "Google could not be loaded. Please try again.",
@@ -84,8 +83,6 @@ export const component = {
       showRegister: "No account yet? Register",
       showLogin: "Already have an account? Sign in",
       logout: "Sign out",
-      cancel: "Cancel",
-      signedIn: "Signed in as",
       pending: "Please wait …",
       mismatch: "The passwords do not match.",
       invalid: "The username or password is incorrect.",
@@ -100,7 +97,6 @@ export const component = {
       deletionRequiresLogin: "Sign in before deleting your account.",
       requestBusy: "A request is already in progress.",
       googleFailed: "Google sign-in failed. Please try again.",
-      googleUnavailable: "Google sign-in could not be loaded. Please reopen this dialog to retry.",
       googleLogin: "Sign in with Google",
       or: "or",
       googlePopupBlocked: "Please allow the login popup and try again.",
@@ -129,9 +125,6 @@ export const component = {
 
       /** Form draft; `state.user` is the authenticated username. */
       username: "",
-
-      /** Whether callers are waiting for an interactive login that can be canceled. */
-      cancellable: false,
 
       /** Whether the modal dialog should be open. */
       dialog: false,
@@ -618,7 +611,6 @@ export const component = {
 
       // Clear the pending login and close the dialog now that authentication has succeeded.
       pendingLogin = null;
-      this.gui.cancellable = false;
       this.gui.dialog = false;
       render();
 
@@ -644,7 +636,6 @@ export const component = {
         pendingLogin = { resolve, reject };
       });
       pendingLogin.promise = promise;
-      this.gui.cancellable = true;
       render();
       return promise;
     };
@@ -654,7 +645,6 @@ export const component = {
       if (!pendingLogin) return;
       const { reject } = pendingLogin;
       pendingLogin = null;
-      this.gui.cancellable = false;
       reject(new DOMException(this.labels.loginCancelled, "AbortError"));
     };
   },
