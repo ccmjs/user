@@ -23,13 +23,34 @@ test("Google callback uses verified server metadata and resolves interactive log
   assert.equal(app.getToken(), "ccm-jwt");
 });
 
-test("late provider responses cannot restore a cancelled session", async () => {
-  let finish;
-  const { app } = create(() => new Promise(resolve => { finish = resolve; }));
-  const pending = app.login({ idToken: "proof" }, "google");
-  const rejected = assert.rejects(pending, { name: "AbortError" });
-  await app.logout();
-  finish({ key: "external", token: "jwt", user: "Name", realm: "ccm", provider: "google" });
-  await rejected;
+test("closing the dialog cancels the Google popup and ignores a late result", async () => {
+  let finish, cancelled = 0, requests = 0;
+  const { app } = create(async () => { requests++; });
+  app.google = { popup: { login: () => ({
+    promise: new Promise(resolve => { finish = resolve; }),
+    cancel() { cancelled++; },
+  }) } };
+  const waiting = app.login();
+  const rejected = assert.rejects(waiting, { name: "AbortError" });
+  const google = app.events.google();
+  assert.equal(app.gui.busy, true);
+  app.events.cancel();
+  finish({ idToken: "late-proof" });
+  await Promise.all([google, rejected]);
+  assert.equal(cancelled, 1);
+  assert.equal(requests, 0);
+  assert.equal(app.gui.busy, false);
+  assert.equal(app.gui.dialog, false);
   assert.equal(app.isLoggedIn(), false);
+});
+
+test("Google responses must match the requested realm and provider and contain a usable token", async () => {
+  const valid = { key: "account", user: "Person", realm: "ccm", provider: "google", token: "jwt" };
+  for (const change of [{ realm: "other" }, { provider: "ccm" }, { user: null }, { token: "" }, { token: 123 }]) {
+    const { app } = create(async () => ({ ...valid, ...change }));
+    await assert.rejects(app.login({ idToken: "proof" }, "google"), /Invalid authentication response/);
+    assert.equal(app.isLoggedIn(), false);
+    assert.equal(app.getState(), null);
+    assert.equal(app.gui.busy, false);
+  }
 });

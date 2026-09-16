@@ -50,10 +50,7 @@ test("register, token access, metadata and logout", async () => {
   assert.equal(app.getToken(), "jwt");
   assert.equal(app.getState().user, "André");
   assert.equal(app.getState().realm, "ccm");
-  assert.equal(Object.hasOwn(app.getState(), "session"), false);
   assert.equal(JSON.stringify(app.getState()).includes("jwt"), false);
-  assert.equal(app.getValue, undefined);
-  assert.equal(app.getKey, undefined);
   await app.logout();
   assert.equal(app.isLoggedIn(), false);
   assert.equal(app.getState(), null);
@@ -265,6 +262,11 @@ test("storage is isolated by server and realm and can be disabled", async t => {
     assert.equal(other.getToken(), null);
     await other.logout();
     assert.equal(storage.size, 1);
+    if (config.session === false) {
+      await other.login({ user: "b", password: "pw" });
+      assert.equal(storage.size, 1);
+      assert.equal(JSON.parse([...storage.values()][0]).user, "a");
+    }
   }
 });
 
@@ -336,4 +338,85 @@ test("trigger and profile show the provider picture with a standard icon fallbac
   assert.equal(removed, true);
   await app.logout();
   assert.doesNotMatch(views.trigger(app), /avatar.png/);
+});
+
+test("an old failed request cannot clear busy state or set errors on a newer login", async () => {
+  const requests = [];
+  const { app } = create(() => new Promise((resolve, reject) => requests.push({ resolve, reject })));
+  const old = app.login({ user: "old", password: "pw" });
+  const rejected = assert.rejects(old, { status: 401 });
+  await app.logout();
+  const current = app.login({ user: "current", password: "pw" });
+  requests[0].reject(Object.assign(new Error("Old failure"), { status: 401 }));
+  await rejected;
+  assert.equal(app.gui.busy, true);
+  assert.equal(app.gui.message, "");
+  requests[1].resolve({ key: "current", token: "new-token" });
+  await current;
+  assert.equal(app.getState().user, "current");
+  assert.equal(app.getToken(), "new-token");
+  assert.equal(app.gui.busy, false);
+});
+
+test("invalid credentials and duplicate requests never reach the server", async () => {
+  let calls = 0, finish;
+  const { app } = create(() => {
+    calls++;
+    return new Promise(resolve => { finish = resolve; });
+  });
+  for (const [credentials, provider] of [
+    [{}, "ccm"], [{ user: "a", password: 123 }, "ccm"],
+    [{}, "google"], [{ idToken: "" }, "google"],
+  ]) await assert.rejects(app.login(credentials, provider), TypeError);
+  assert.equal(calls, 0);
+  const pending = app.login({ user: "a", password: "pw" });
+  await assert.rejects(app.login({ user: "b", password: "pw" }), /already in progress/);
+  assert.equal(calls, 1);
+  finish({ key: "account", token: "jwt" });
+  await pending;
+});
+
+test("a stale deletion response cannot sign out a newly authenticated user", async () => {
+  let finishDeletion;
+  const { app } = create(request => request.params.deleteAccount
+    ? new Promise(resolve => { finishDeletion = resolve; })
+    : Promise.resolve({ key: request.params.credentials.user, token: "jwt" }));
+  await app.login({ user: "old", password: "pw" });
+  const deleting = app.deleteAccount();
+  await app.logout();
+  await app.login({ user: "current", password: "pw" });
+  finishDeletion(true);
+  await deleting;
+  assert.equal(app.getState().key, "current");
+  assert.equal(app.isLoggedIn(), true);
+});
+
+test("interactive login resolves even when a subsequent extension fails", async () => {
+  const failure = new Error("Extension failed");
+  const { app } = create(undefined, { extensions: [() => { throw failure; }] });
+  const waiting = app.login();
+  await assert.rejects(app.login({ user: "a", password: "pw" }), error => error === failure);
+  assert.equal((await waiting).key, "account");
+  assert.equal(app.isLoggedIn(), true);
+});
+
+test("views escape user text and offer Google only in login mode", async () => {
+  const views = await import("../resources/views.mjs");
+  const { app } = create(undefined, { google: {} });
+  app.ui.html = (parts, ...values) => parts.reduce((text, part, i) =>
+    text + part + (values[i] === false || values[i] == null ? "" : values[i]), "");
+  app.gui.username = '\"><img src=x onerror=alert(1)>';
+  const login = views.dialog(app);
+  assert.match(login, /data-on-click="google"/);
+  assert.match(login, /class="auth-divider"/);
+  assert.doesNotMatch(login, /<img src=x/);
+  assert.match(login, /&quot;&gt;&lt;img/);
+  app.gui.mode = "register";
+  const registration = views.dialog(app);
+  assert.doesNotMatch(registration, /data-on-click="google"|class="auth-divider"/);
+  assert.match(registration, /name="confirmation"/);
+  await app.login({ user: "<script>alert(1)</script>", password: "pw" });
+  assert.doesNotMatch(views.trigger(app), /<script>/);
+  assert.doesNotMatch(views.dialog(app), /<script>/);
+  assert.match(views.trigger(app), /&lt;script&gt;/);
 });

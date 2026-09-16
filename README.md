@@ -122,8 +122,11 @@ MIA OIDC remains a separate future step. Dataset permissions are enforced by the
 node --test
 ```
 
-These tests cover the component's authentication flow with a controlled transport.
-The sibling ccm-server repository contains the real-server integration test.
+These tests cover authentication, concurrent requests, session restoration, instance
+hierarchies, view output, and the Google popup handshake and failure paths using
+controlled transports and browser substitutes. The sibling ccm-server repository
+contains real-server integration tests. Native dialog focus, Enter submission,
+CSS animations and password-manager extensions still need testing in a real browser.
 
 ## Rendering
 

@@ -16,7 +16,7 @@ test("hosted page requires validated opener handshake before automatically loadi
     clientId: "test-client", URL, URLSearchParams,
     location: { hash: '#origin=https%3A%2F%2Fapp.example&request=test' },
     window: { opener, addEventListener(type, fn) { receive = fn; }, close() {} },
-    document: { documentElement: {}, querySelector: element, createElement() { return {}; }, head: { append(script) { scripts.push(script); } } },
+    document: { documentElement: {}, querySelector: element, createElement() { return { remove() { this.removed = true; } }; }, head: { append(script) { scripts.push(script); } } },
     google: { accounts: { id: { initialize(value) { options = value; }, renderButton() {} } } },
   };
   const source = (await readFile(new URL('./google-page.mjs', import.meta.url), 'utf8')).replace('import { clientId } from "./google-config.mjs";', '');
@@ -27,6 +27,9 @@ test("hosted page requires validated opener handshake before automatically loadi
   receive({ source: opener, origin: 'https://wrong.example', data: { type: 'ccm-google-init', request: 'test' } });
   receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'wrong' } });
   assert.equal(scripts.length, 0);
+  receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', labels: {} } });
+  assert.equal(scripts.length, 0);
+  assert.match(element('#message').textContent, /Please open this page/);
   receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', labels: { ...component.config.labels.googlePopup, heading: '<b>Anmelden für</b>', loading: 'Wird geladen …', language: 'de' } } });
   assert.equal(scripts.length, 1);
   assert.equal(context.document.title, 'Sign in with Google');
@@ -35,10 +38,20 @@ test("hosted page requires validated opener handshake before automatically loadi
   assert.equal(context.document.documentElement.lang, 'de');
   assert.equal(element('#origin').textContent, 'https://app.example');
   assert.equal(scripts[0].src, 'https://accounts.google.com/gsi/client');
-  scripts[0].onload();
+  scripts[0].onerror();
+  assert.equal(scripts[0].removed, true);
+  assert.equal(element('#retry').hidden, false);
+  assert.equal(element('#message').textContent, component.config.labels.googlePopup.loadFailed);
+  element('#retry').click();
+  assert.equal(scripts.length, 2);
+  assert.equal(element('#retry').hidden, true);
+  scripts[1].onload();
   assert.equal(options.ux_mode, 'popup');
   options.callback({ credential: 'proof' });
   assert.equal(replies.at(-1)[0].idToken, 'proof');
   assert.equal(replies.at(-1)[1], 'https://app.example');
   assert.equal(context.location.hash.includes('proof'), false);
+  const count = replies.length;
+  options.callback({ credential: 'duplicate-proof' });
+  assert.equal(replies.length, count);
 });
