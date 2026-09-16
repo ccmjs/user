@@ -58,7 +58,7 @@
     background: #2058b5;
     color: white;
 
-    span:not(.icon) {
+    > span:not(.avatar) {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -75,6 +75,26 @@
 
     &.signed-in:hover {
       background: #eef3fc;
+    }
+  }
+
+  .avatar {
+    display: grid;
+    place-items: center;
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+    flex: none;
+
+    > .icon, > img {
+      grid-area: 1 / 1;
+    }
+
+    > img {
+      inline-size: 100%;
+      block-size: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      background: white;
     }
   }
 

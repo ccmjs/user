@@ -11,11 +11,16 @@ export function main(app) {
 
 /** Creates the compact header button. */
 export function trigger(app) {
+  const state = app.getState();
   return app.ui.html`
     <button type="button" class="account-button ${app.isLoggedIn() ? "signed-in" : ""}"
             data-on-click="open" aria-haspopup="dialog">
-      ${icon(app, app.isLoggedIn() ? "user" : "login")}
-      <span>${escape(app.isLoggedIn() ? app.getState().user : app.labels.login)}</span>
+      <span class="avatar" aria-hidden="true">
+        ${icon(app, state ? "user" : "login")}
+        ${state?.picture && app.ui.html`<img src="${escape(state.picture)}" alt="" referrerpolicy="no-referrer"
+          data-on-error="hideProfilePicture" />`}
+      </span>
+      <span>${escape(state ? state.user : app.labels.login)}</span>
     </button>
   `;
 }

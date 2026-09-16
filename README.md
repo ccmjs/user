@@ -237,3 +237,10 @@ own `emit()`. No module-level registry or global browser state is needed. Differ
 module versions can cooperate if they implement this interface; older versions
 without it remain independent. Applications continue to use only `config.user`
 and `extensions` and do not need to call these coordination methods themselves.
+
+
+Google sign-in can supply an optional `picture` URL in `getState()`. The trigger
+shows this image instead of the standard user icon, falling back to the icon if
+loading fails. The URL is cached with the session; loading the image makes an
+HTTPS request to its host without sending the page URL as a referrer. No additional
+Google permissions are requested.

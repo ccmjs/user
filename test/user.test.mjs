@@ -231,7 +231,7 @@ test("reload restores token and metadata without a server request or login event
 
 test("Google sessions save only CCM credentials and restore the selected realm", async t => {
   const storage = browserStorage(t);
-  const metadata = { key: "google_account", user: "Google user", realm: "tea", provider: "google" };
+  const metadata = { key: "google_account", user: "Google user", realm: "tea", provider: "google", picture: "https://example.org/avatar.png" };
   const { app } = create(async () => ({ ...metadata, token: "ccm-jwt" }), { realm: "tea" });
   await app.login({ idToken: "google-proof" }, "google");
   assert.deepEqual(JSON.parse([...storage.values()][0]), { ...metadata, token: "ccm-jwt" });
@@ -316,4 +316,22 @@ test("identity keys must be single valid CCM keys on login and restoration", asy
     assert.equal(app.getState(), null);
     assert.equal(storage.size, 0);
   }
+});
+
+
+test("trigger shows the provider picture with a standard icon fallback", async () => {
+  const views = await import("../resources/views.mjs");
+  const { app } = create(async () => ({ key: "account", token: "jwt", user: "Person", realm: "ccm",
+    provider: "google", picture: "https://example.org/avatar.png" }));
+  app.ui.html = (parts, ...values) => parts.reduce((text, part, i) => text + part + (values[i] || ""), "");
+  assert.doesNotMatch(views.trigger(app), /data-on-error/);
+  await app.login({ idToken: "proof" }, "google");
+  assert.match(views.trigger(app), /src="https:\/\/example.org\/avatar.png"/);
+  assert.match(views.trigger(app), /data-on-error="hideProfilePicture"/);
+  assert.match(views.trigger(app), /class="icon"/);
+  let removed = false;
+  app.events.hideProfilePicture({ currentTarget: { remove() { removed = true; } } });
+  assert.equal(removed, true);
+  await app.logout();
+  assert.doesNotMatch(views.trigger(app), /avatar.png/);
 });

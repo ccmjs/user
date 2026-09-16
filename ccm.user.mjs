@@ -175,6 +175,7 @@ export const component = {
         // Restore locally; the server checks token validity on the next authenticated request.
         token = session.token;
         state = { key: session.key, user: session.user, realm: session.realm, provider: session.provider };
+        if (typeof session.picture === "string" && session.picture.startsWith("https://")) state.picture = session.picture;
       } catch {
         // Discard malformed session data.
         sessionStorageAccess("removeItem");
@@ -269,6 +270,8 @@ export const component = {
 
     /** DOM handlers bound by ccm-ui through data-on-* attributes. */
     this.events = {
+      /** Reveals the standard icon beneath a profile image that could not be loaded. */
+      hideProfilePicture: (event) => event.currentTarget.remove(),
       google: async () => {
         if (!this.google || this.gui.busy) return;
         const version = requestVersion;
@@ -527,7 +530,7 @@ export const component = {
         /**
          * User metadata assembled from the authentication result.
          * Local registration/login returns { key, token }; the other fields are already known.
-         * Google login also returns { user, realm, provider }, which we take from the server.
+         * Google login also returns { user, realm, provider } and optionally a profile picture URL.
          */
         const identity = {
           key: result?.key,
@@ -535,6 +538,8 @@ export const component = {
           realm: provider === "ccm" ? this.realm : result?.realm,
           provider: provider === "ccm" ? provider : result?.provider,
         };
+        if (provider !== "ccm" && typeof result?.picture === "string" && result.picture.startsWith("https://"))
+          identity.picture = result.picture;
 
         // Accept the session only when its metadata, provider and token format are valid.
         if (
@@ -625,4 +630,5 @@ export const component = {
  * @property {string} user - Display name or local username
  * @property {string} realm - Independent user area
  * @property {string} provider - Authentication provider, e.g. "ccm" or "google"
+ * @property {string} [picture] - Optional HTTPS profile picture URL from the authentication provider
  */
