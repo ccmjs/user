@@ -11,11 +11,12 @@
     main {
       max-width: 28rem; margin: auto; padding: 1.5rem; background: white;
       border: 1px solid #dbe2eb; border-radius: 1rem;
-      h1 { font-size: 1.5rem; margin-top: 0; }
-      dd { margin: .25rem 0 1rem; overflow-wrap: anywhere; font-weight: 600; }
+      h1 { font-size: 1rem; font-weight: 400; margin: 0; }
+      #origin { display: block; overflow-wrap: anywhere; }
       button { padding: .65rem 1rem; font: inherit; cursor: pointer; }
       :focus-visible { outline: 3px solid #d98a1c; outline-offset: 3px; }
       #message { color: #9d2525; }
+      #message:empty { display: none; }
       #google { margin-block: 1rem; min-height: 2.5rem; }
     }
   </style>
@@ -23,17 +24,10 @@
 </head>
 <body>
   <main>
-    <h1>Mit Google anmelden</h1>
-    <p>Diese Webseite möchte deine Google-Identität zur Anmeldung verwenden:</p>
-    <dl><dt>Webseite</dt><dd id="origin">Noch keine Anfrage</dd>
-      <dt>CCM-Server</dt><dd id="server">Noch keine Anfrage</dd></dl>
-    <p>Fahre nur fort, wenn du dieser Webseite und diesem Server vertraust.
-      Dein Anmeldenachweis wird an die angezeigte Webseite weitergegeben.
-      Dein Google-Passwort wird nicht weitergegeben.</p>
-    <button id="continue" type="button" disabled>Fortfahren</button>
+    <h1>Anmelden für <strong id="origin"></strong></h1>
+    <button id="retry" type="button" hidden>Erneut versuchen</button>
     <div id="google"></div>
     <p id="message" role="status" aria-live="polite">Warte auf die aufrufende Webseite …</p>
-    <button id="cancel" type="button">Abbrechen</button>
   </main>
 </body>
 </html>

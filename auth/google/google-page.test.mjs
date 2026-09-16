@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 
-test("hosted page requires opener handshake and consent before loading Google", async () => {
+test("hosted page requires validated opener handshake before automatically loading Google", async () => {
   const elements = new Map();
   const element = key => {
     if (!elements.has(key)) elements.set(key, { disabled: true, addEventListener(type, fn) { this[type] = fn; } });
@@ -22,11 +22,13 @@ test("hosted page requires opener handshake and consent before loading Google", 
   vm.runInNewContext(source, context);
   assert.equal(scripts.length, 0);
   receive({ source: {}, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', server: 'https://server.example' } });
-  assert.equal(element('#continue').disabled, true);
+  assert.equal(scripts.length, 0);
+  receive({ source: opener, origin: 'https://wrong.example', data: { type: 'ccm-google-init', request: 'test', server: 'https://server.example' } });
+  receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'wrong', server: 'https://server.example' } });
+  assert.equal(scripts.length, 0);
   receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', server: 'https://server.example' } });
-  assert.equal(element('#continue').disabled, false);
-  assert.equal(element('#server').textContent, 'https://server.example/');
-  element('#continue').click();
+  assert.equal(scripts.length, 1);
+  assert.equal(element('#origin').textContent, 'https://app.example');
   assert.equal(scripts[0].src, 'https://accounts.google.com/gsi/client');
   scripts[0].onload();
   assert.equal(options.ux_mode, 'popup');

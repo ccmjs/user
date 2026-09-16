@@ -4,7 +4,7 @@ const params = new URLSearchParams(location.hash.slice(1));
 const request = params.get("request");
 const origin = params.get("origin");
 const message = document.querySelector("#message");
-const proceed = document.querySelector("#continue");
+const retry = document.querySelector("#retry");
 let initialized = false;
 let completed = false;
 
@@ -28,19 +28,18 @@ try {
     if (initialized || event.source !== window.opener || event.origin !== origin ||
         event.data?.type !== "ccm-google-init" || event.data.request !== request) return;
     try {
-      const server = allowedURL(event.data.server);
+      allowedURL(event.data.server);
       initialized = true;
-      document.querySelector("#server").textContent = server.href;
       if (!clientId) throw new Error("Die Google-Client-ID fehlt noch in auth/google/google-config.mjs.");
-      proceed.disabled = false;
-      message.textContent = "";
+      loadGoogle();
     } catch (error) { message.textContent = error.message; }
   });
   send("ccm-google-ready");
 } catch (error) { message.textContent = error.message; }
 
-proceed.addEventListener("click", () => {
-  proceed.disabled = true;
+/** Loads the Google button after the opener handshake, or retries a failed load. */
+function loadGoogle() {
+  retry.hidden = true;
   message.textContent = "Google-Anmeldung wird geladen …";
   const script = document.createElement("script");
   script.src = "https://accounts.google.com/gsi/client";
@@ -58,18 +57,13 @@ proceed.addEventListener("click", () => {
       type: "standard", theme: "outline", size: "large",
     });
     message.textContent = "";
-    proceed.hidden = true;
   };
   script.onerror = () => {
     message.textContent = "Google konnte nicht geladen werden. Bitte versuche es erneut.";
-    proceed.disabled = false;
+    retry.hidden = false;
     script.remove();
   };
   document.head.append(script);
-});
+}
 
-document.querySelector("#cancel").addEventListener("click", () => {
-  completed = true;
-  if (initialized) send("ccm-google-cancel");
-  window.close();
-});
+retry.addEventListener("click", loadGoogle);

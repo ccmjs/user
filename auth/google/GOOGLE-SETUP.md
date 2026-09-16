@@ -1,7 +1,7 @@
 # Google login with a hosted popup
 
 The embedding website opens `auth/google/google.html`. This fixed page loads Google's official
-button and receives its JavaScript callback. After explicit consent, it passes the
+button and receives its JavaScript callback. After successful Google sign-in, it passes the
 Google ID token to the requesting component, which exchanges it for a CCM JWT at
 its configured server. Neither the original page nor its root component restarts.
 
@@ -76,8 +76,8 @@ popup; allow popups when the browser asks.
 ## Expected behavior
 
 - Open the component's login dialog, then choose Google.
-- The hosted popup displays the requesting website and CCM server. Confirm only
-  if both are trusted, then click Google's official sign-in button.
+- The hosted popup displays the requesting website and loads Google's sign-in button automatically.
+  Click the button to sign in, or close the popup to cancel.
 - On success the popup closes and the component shows the server-provided name.
 - Cancelling the popup leaves the login dialog available for another attempt.
 - Local password login and registration continue to work.
