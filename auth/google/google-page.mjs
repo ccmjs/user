@@ -1,5 +1,11 @@
 import { clientId } from "./google-config.mjs";
 
+/** Fallback errors for direct or invalid calls before configuration arrives. */
+let labels = {
+  invalidURL: "An HTTPS address is required (HTTP is allowed locally).",
+  invalidRequest: "Please open this page using the user component's Google button.",
+};
+
 const params = new URLSearchParams(location.hash.slice(1));
 const request = params.get("request");
 const origin = params.get("origin");
@@ -8,11 +14,21 @@ const retry = document.querySelector("#retry");
 let initialized = false;
 let completed = false;
 
+/** Applies plain text labels without interpreting configuration as HTML. */
+function applyLabels() {
+  document.title = labels.title;
+  document.documentElement.lang = labels.language;
+  document.querySelector("#heading").textContent = labels.heading;
+  retry.textContent = labels.retry;
+}
+
+message.textContent = "Waiting for the requesting website …";
+
 function allowedURL(value) {
   const url = new URL(value);
   if (url.username || url.password ||
       (url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))))
-    throw new Error("Eine HTTPS-Adresse ist erforderlich (lokal ist HTTP erlaubt).");
+    throw new Error(labels.invalidURL);
   return url;
 }
 
@@ -22,15 +38,23 @@ function send(type, extra = {}) {
 
 try {
   if (!window.opener || !request || request.length > 128 || allowedURL(origin).origin !== origin)
-    throw new Error("Bitte öffne diese Seite über den Google-Button der User-Komponente.");
+    throw new Error(labels.invalidRequest);
   document.querySelector("#origin").textContent = origin;
   window.addEventListener("message", event => {
     if (initialized || event.source !== window.opener || event.origin !== origin ||
         event.data?.type !== "ccm-google-init" || event.data.request !== request) return;
     try {
+      // The component supplies its complete labels after CCM has merged configuration overrides.
+      const received = event.data.labels;
+      if (!["language", "title", "heading", "retry", "waiting", "loading", "transferring", "loadFailed",
+        "invalidURL", "invalidRequest", "missingClientId"].every(key => typeof received?.[key] === "string"))
+        throw new Error(labels.invalidRequest);
+      labels = received;
+      applyLabels();
+      message.textContent = labels.waiting;
       allowedURL(event.data.server);
       initialized = true;
-      if (!clientId) throw new Error("Die Google-Client-ID fehlt noch in auth/google/google-config.mjs.");
+      if (!clientId) throw new Error(labels.missingClientId);
       loadGoogle();
     } catch (error) { message.textContent = error.message; }
   });
@@ -40,7 +64,7 @@ try {
 /** Loads the Google button after the opener handshake, or retries a failed load. */
 function loadGoogle() {
   retry.hidden = true;
-  message.textContent = "Google-Anmeldung wird geladen …";
+  message.textContent = labels.loading;
   const script = document.createElement("script");
   script.src = "https://accounts.google.com/gsi/client";
   script.onload = () => {
@@ -50,16 +74,16 @@ function loadGoogle() {
         if (completed || typeof response.credential !== "string") return;
         completed = true;
         send("ccm-google-result", { idToken: response.credential });
-        message.textContent = "Anmeldung wird an die Webseite übergeben …";
+        message.textContent = labels.transferring;
       },
     });
     google.accounts.id.renderButton(document.querySelector("#google"), {
-      type: "standard", theme: "outline", size: "large",
+      type: "standard", theme: "outline", size: "large", locale: labels.language,
     });
     message.textContent = "";
   };
   script.onerror = () => {
-    message.textContent = "Google konnte nicht geladen werden. Bitte versuche es erneut.";
+    message.textContent = labels.loadFailed;
     retry.hidden = false;
     script.remove();
   };

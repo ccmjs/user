@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
+import { component } from "../../ccm.user.mjs";
 
 test("hosted page requires validated opener handshake before automatically loading Google", async () => {
   const elements = new Map();
@@ -15,10 +16,10 @@ test("hosted page requires validated opener handshake before automatically loadi
     clientId: "test-client", URL, URLSearchParams,
     location: { hash: '#origin=https%3A%2F%2Fapp.example&request=test' },
     window: { opener, addEventListener(type, fn) { receive = fn; }, close() {} },
-    document: { querySelector: element, createElement() { return {}; }, head: { append(script) { scripts.push(script); } } },
+    document: { documentElement: {}, querySelector: element, createElement() { return {}; }, head: { append(script) { scripts.push(script); } } },
     google: { accounts: { id: { initialize(value) { options = value; }, renderButton() {} } } },
   };
-  const source = (await readFile(new URL('./google-page.mjs', import.meta.url), 'utf8')).replace('import { clientId } from "./google-config.mjs";', '');
+  const source = (await readFile(new URL('./google-page.mjs', import.meta.url), 'utf8')).replace('import { component } from "../../ccm.user.mjs";', '').replace('import { clientId } from "./google-config.mjs";', '');
   vm.runInNewContext(source, context);
   assert.equal(scripts.length, 0);
   receive({ source: {}, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', server: 'https://server.example' } });
@@ -26,8 +27,12 @@ test("hosted page requires validated opener handshake before automatically loadi
   receive({ source: opener, origin: 'https://wrong.example', data: { type: 'ccm-google-init', request: 'test', server: 'https://server.example' } });
   receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'wrong', server: 'https://server.example' } });
   assert.equal(scripts.length, 0);
-  receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', server: 'https://server.example' } });
+  receive({ source: opener, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test', server: 'https://server.example', labels: { ...component.config.labels.googlePopup, heading: '<b>Anmelden für</b>', loading: 'Wird geladen …', language: 'de' } } });
   assert.equal(scripts.length, 1);
+  assert.equal(context.document.title, 'Sign in with Google');
+  assert.equal(element('#heading').textContent, '<b>Anmelden für</b>');
+  assert.equal(element('#message').textContent, 'Wird geladen …');
+  assert.equal(context.document.documentElement.lang, 'de');
   assert.equal(element('#origin').textContent, 'https://app.example');
   assert.equal(scripts[0].src, 'https://accounts.google.com/gsi/client');
   scripts[0].onload();

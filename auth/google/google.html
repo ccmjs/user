@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <title>Bei ccmjs mit Google anmelden</title>
+  <title>Sign in with Google</title>
   <style>
     :root { font: 1rem/1.5 system-ui, sans-serif; color: #202b3b; background: #f3f6fa; }
     body { margin: 0; padding: 2rem 1rem; }
@@ -24,10 +24,10 @@
 </head>
 <body>
   <main>
-    <h1>Anmelden für <strong id="origin"></strong></h1>
-    <button id="retry" type="button" hidden>Erneut versuchen</button>
+    <h1><span id="heading"></span> <strong id="origin"></strong></h1>
+    <button id="retry" type="button" hidden></button>
     <div id="google"></div>
-    <p id="message" role="status" aria-live="polite">Warte auf die aufrufende Webseite …</p>
+    <p id="message" role="status" aria-live="polite"></p>
   </main>
 </body>
 </html>

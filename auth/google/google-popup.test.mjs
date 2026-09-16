@@ -14,7 +14,7 @@ test("popup accepts only its own origin, window and request and cleans up", asyn
     addEventListener(type, fn) { receive = fn; },
     removeEventListener() { receive = null; },
   };
-  const operation = login({ google: { url: "https://login.example/auth/google/google.html" }, url: "https://server.example", labels: {} });
+  const operation = login({ google: { url: "https://login.example/auth/google/google.html" }, url: "https://server.example", labels: { googlePopup: { heading: "Anmelden für" } } });
   const request = new URLSearchParams(opened.hash.slice(1)).get("request");
   const data = { type: "ccm-google-result", request, idToken: "proof" };
   receive({ origin: "https://wrong.example", source: popup, data });
@@ -23,6 +23,7 @@ test("popup accepts only its own origin, window and request and cleans up", asyn
   assert.equal(popup.closed, false);
   receive({ origin: opened.origin, source: popup, data: { type: "ccm-google-ready", request } });
   assert.equal(messages[0][1], opened.origin);
+  assert.deepEqual(messages[0][0].labels, { heading: "Anmelden für" });
   receive({ origin: opened.origin, source: popup, data });
   assert.deepEqual(await operation.promise, { idToken: "proof" });
   assert.equal(receive, null); assert.equal(popup.closed, true);

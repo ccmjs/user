@@ -20,7 +20,7 @@ export function login(app) {
     const receive = event => {
       if (event.origin !== url.origin || event.source !== popup || event.data?.request !== request) return;
       if (event.data.type === "ccm-google-ready") {
-        popup.postMessage({ type: "ccm-google-init", request, server: app.url }, url.origin);
+        popup.postMessage({ type: "ccm-google-init", request, server: app.url, labels: app.labels.googlePopup }, url.origin);
       } else if (event.data.type === "ccm-google-result" && typeof event.data.idToken === "string") {
         finish(null, { idToken: event.data.idToken });
       } else if (event.data.type === "ccm-google-cancel") {

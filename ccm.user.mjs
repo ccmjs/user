@@ -49,6 +49,19 @@ export const component = {
 
     // Static UI labels
     labels: {
+      googlePopup: {
+        language: "en",
+        title: "Sign in with Google",
+        heading: "Sign in for",
+        retry: "Try again",
+        waiting: "Waiting for the requesting website …",
+        loading: "Loading Google sign-in …",
+        transferring: "Returning sign-in to the website …",
+        loadFailed: "Google could not be loaded. Please try again.",
+        invalidURL: "An HTTPS address is required (HTTP is allowed locally).",
+        invalidRequest: "Please open this page using the user component's Google button.",
+        missingClientId: "The Google client ID is missing in auth/google/google-config.mjs.",
+      },
       title: "Sign in",
       profile: "Your profile",
       userId: "User ID",

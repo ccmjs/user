@@ -98,3 +98,26 @@ A real Google account test requires the client ID and published/local origin set
 References:
 - https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid
 - https://developers.google.com/identity/gsi/web/guides/verify-google-id-token
+
+## Popup labels
+
+Override popup text through `config.labels.googlePopup`, for example:
+
+```javascript
+labels: {
+  googlePopup: {
+    language: "de",
+    title: "Mit Google anmelden",
+    heading: "Anmelden für",
+    retry: "Erneut versuchen",
+    loading: "Google-Anmeldung wird geladen …",
+  },
+},
+```
+
+All available keys and English defaults are directly in `config.labels.googlePopup`
+in `ccm.user.mjs`. CCM merges overrides with these defaults. Labels are sent through the validated opener handshake and
+inserted as plain text. Before that handshake, the page uses English defaults,
+including errors when opened directly. `language` sets the page language and the
+Google button locale; Google's own account selection and consent screens remain
+controlled by Google.
