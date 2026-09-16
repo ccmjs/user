@@ -471,7 +471,7 @@ export const component = {
       if (this.gui.dialog) {
         if (!dialog.open) dialog.showModal();
         if (!this.gui.busy) {
-          // Let users choose a sign-in method first; focus the password field after a failed attempt.
+          // Focus the initial field or action; after a failed login, focus the password field.
           const focusTarget =
             (this.gui.message && dialog.querySelector('[name="password"]')) || dialog.querySelector("[autofocus]");
           focusTarget?.focus();

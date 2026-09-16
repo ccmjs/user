@@ -38,7 +38,7 @@ export function dialog(app) {
     <div class="dialog-container">
       <section class="card">
         <header class="dialog-header">
-          <h1 id="${escape(app.index)}-title" tabindex="-1" ${!app.isLoggedIn() && "autofocus"}>${escape(title)}</h1>
+          <h1 id="${escape(app.index)}-title">${escape(title)}</h1>
           <button type="button" class="close-button" data-on-click="cancel"
                   aria-label="${escape(labels.close)}" ${deleting && gui.busy && "disabled"}>
             ${icon(app, "close")}
@@ -109,7 +109,7 @@ function authentication(app) {
         <label>
           ${escape(labels.user)}
           <input name="user" type="text" autocomplete="username"
-                 value="${escape(gui.username)}" required>
+                 value="${escape(gui.username)}" required autofocus>
         </label>
         <label>
           ${escape(labels.password)}
