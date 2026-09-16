@@ -230,6 +230,11 @@
     font-weight: 650;
     overflow-wrap: anywhere;
 
+    .avatar {
+      inline-size: 2.5rem;
+      block-size: 2.5rem;
+    }
+
     .icon {
       inline-size: 2.5rem;
       block-size: 2.5rem;

@@ -15,11 +15,7 @@ export function trigger(app) {
   return app.ui.html`
     <button type="button" class="account-button ${app.isLoggedIn() ? "signed-in" : ""}"
             data-on-click="open" aria-haspopup="dialog">
-      <span class="avatar" aria-hidden="true">
-        ${icon(app, state ? "user" : "login")}
-        ${state?.picture && app.ui.html`<img src="${escape(state.picture)}" alt="" referrerpolicy="no-referrer"
-          data-on-error="hideProfilePicture" />`}
-      </span>
+      ${avatar(app)}
       <span>${escape(state ? state.user : app.labels.login)}</span>
     </button>
   `;
@@ -61,7 +57,7 @@ function profile(app) {
   const state = app.getState();
   return app.ui.html`
     <div class="profile-heading">
-      ${icon(app, "user")}
+      ${avatar(app)}
       <span>${escape(state.user)}</span>
     </div>
     <dl class="profile-data">
@@ -150,6 +146,18 @@ function message(app) {
   return app.ui.html`
     <p class="message" role="${app.gui.message ? "alert" : "status"}" aria-live="polite"
     >${escape(app.gui.busy ? app.labels.pending : app.gui.message)}</p>
+  `;
+}
+
+/** Creates the profile picture with a standard icon underneath as a fallback if loading fails. */
+function avatar(app) {
+  const state = app.getState();
+  return app.ui.html`
+    <span class="avatar" aria-hidden="true">
+      ${icon(app, state ? "user" : "login")}
+      ${state?.picture && app.ui.html`<img src="${escape(state.picture)}" alt="" referrerpolicy="no-referrer"
+        data-on-error="hideProfilePicture" />`}
+    </span>
   `;
 }
 

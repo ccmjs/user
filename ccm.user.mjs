@@ -188,7 +188,8 @@ export const component = {
         // Restore locally; the server checks token validity on the next authenticated request.
         token = session.token;
         state = { key: session.key, user: session.user, realm: session.realm, provider: session.provider };
-        if (typeof session.picture === "string" && session.picture.startsWith("https://")) state.picture = session.picture;
+        if (typeof session.picture === "string" && session.picture.startsWith("https://"))
+          state.picture = session.picture;
       } catch {
         // Discard malformed session data.
         sessionStorageAccess("removeItem");
@@ -285,6 +286,8 @@ export const component = {
     this.events = {
       /** Reveals the standard icon beneath a profile image that could not be loaded. */
       hideProfilePicture: (event) => event.currentTarget.remove(),
+
+      /** Opens the Google popup and exchanges its result for a CCM session. */
       google: async () => {
         if (!this.google || this.gui.busy) return;
         const version = requestVersion;
@@ -310,6 +313,8 @@ export const component = {
           }
         }
       },
+
+      /** Opens the profile when signed in, otherwise starts an interactive login. */
       open: () => {
         if (token) {
           this.gui.mode = "profile";
@@ -322,22 +327,33 @@ export const component = {
           });
         }
       },
+
+      /** Opens the account deletion confirmation without deleting the account yet. */
       requestDelete: () => {
         if (!token || this.gui.busy) return;
         this.gui.mode = "delete";
         this.gui.message = "";
         render();
       },
+
+      /** Returns from the deletion confirmation to the profile. */
       keepAccount: () => {
         if (this.gui.busy) return;
         this.gui.mode = "profile";
         this.gui.message = "";
         render();
       },
+
+      /** Confirms account deletion; failures remain visible in the dialog. */
       deleteAccount: () =>
         this.deleteAccount().catch(() => {
           // The failure is displayed in the dialog
         }),
+
+      /**
+       * Submits local credentials, checking password confirmation when registering.
+       * @param {SubmitEvent} event - Submission of the login or registration form
+       */
       submit: async (event) => {
         event.preventDefault();
         if (this.gui.busy) return;
@@ -359,6 +375,8 @@ export const component = {
           if (token) console.error(error);
         }
       },
+
+      /** Switches between login and registration, fading out the current form before rendering the next. */
       switchMode: async () => {
         if (this.gui.busy || !this.registration) return;
         const card = this.element?.querySelector(".card");
@@ -380,7 +398,14 @@ export const component = {
         render();
         this.element?.querySelector(".card")?.classList.add("fade-in");
       },
+
+      /** Signs out and reports errors from logout or its extensions to the console. */
       logout: () => this.logout().catch(console.error),
+
+      /**
+       * Closes the dialog and cancels pending login attempts unless account deletion is in progress.
+       * @param {Event} [event] - Close-button click or native dialog cancellation
+       */
       cancel: (event) => {
         event?.preventDefault();
         if (this.gui.busy && this.gui.mode === "delete") return;

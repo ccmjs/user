@@ -319,7 +319,7 @@ test("identity keys must be single valid CCM keys on login and restoration", asy
 });
 
 
-test("trigger shows the provider picture with a standard icon fallback", async () => {
+test("trigger and profile show the provider picture with a standard icon fallback", async () => {
   const views = await import("../resources/views.mjs");
   const { app } = create(async () => ({ key: "account", token: "jwt", user: "Person", realm: "ccm",
     provider: "google", picture: "https://example.org/avatar.png" }));
@@ -329,6 +329,8 @@ test("trigger shows the provider picture with a standard icon fallback", async (
   assert.match(views.trigger(app), /src="https:\/\/example.org\/avatar.png"/);
   assert.match(views.trigger(app), /data-on-error="hideProfilePicture"/);
   assert.match(views.trigger(app), /class="icon"/);
+  assert.match(views.dialog(app), /src="https:\/\/example.org\/avatar.png"/);
+  assert.match(views.dialog(app), /data-on-error="hideProfilePicture"/);
   let removed = false;
   app.events.hideProfilePicture({ currentTarget: { remove() { removed = true; } } });
   assert.equal(removed, true);
