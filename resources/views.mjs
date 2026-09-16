@@ -38,7 +38,7 @@ export function dialog(app) {
     <div class="dialog-container">
       <section class="card">
         <header class="dialog-header">
-          <h1 id="${escape(app.index)}-title">${escape(title)}</h1>
+          <h1 id="${escape(app.index)}-title" tabindex="-1" ${!app.isLoggedIn() && "autofocus"}>${escape(title)}</h1>
           <button type="button" class="close-button" data-on-click="cancel"
                   aria-label="${escape(labels.close)}" ${deleting && gui.busy && "disabled"}>
             ${icon(app, "close")}
@@ -101,14 +101,15 @@ function authentication(app) {
     ${
       app.google &&
       app.ui.html`<button type="button" class="google-login secondary" data-on-click="google"
-      ${gui.busy && "disabled"}>${escape(app.labels.googleLogin)}</button>`
+      ${gui.busy && "disabled"}>${escape(labels.googleLogin)}</button>
+      <div class="auth-divider">${escape(labels.or)}</div>`
     }
     <form data-on-submit="submit">
       <fieldset ${gui.busy && "disabled"}>
         <label>
           ${escape(labels.user)}
           <input name="user" type="text" autocomplete="username"
-                 value="${escape(gui.username)}" required autofocus>
+                 value="${escape(gui.username)}" required>
         </label>
         <label>
           ${escape(labels.password)}

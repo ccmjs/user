@@ -96,8 +96,22 @@
   }
 
   .google-login {
-    margin-block-end: 1rem;
+    inline-size: 100%;
     min-block-size: 2.5rem;
+  }
+
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-block: 1.25rem;
+    color: #586779;
+
+    &::before, &::after {
+      content: "";
+      flex: 1;
+      border-block-start: 1px solid #dbe2eb;
+    }
   }
 
   .dialog-container {

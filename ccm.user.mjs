@@ -89,6 +89,7 @@ export const component = {
       googleFailed: "Google sign-in failed. Please try again.",
       googleUnavailable: "Google sign-in could not be loaded. Please reopen this dialog to retry.",
       googleLogin: "Sign in with Google",
+      or: "or",
       googlePopupBlocked: "Please allow the login popup and try again.",
       googleTimeout: "Google sign-in timed out. Please try again.",
       invalidProviderCredentials: "An ID token is required for provider login.",
@@ -454,8 +455,12 @@ export const component = {
       this.ui.render(this.views.dialog(this), dialog, this);
       if (this.gui.dialog) {
         if (!dialog.open) dialog.showModal();
-        if (!this.gui.busy)
-          dialog.querySelector(this.gui.message ? '[name="password"], [autofocus]' : "[autofocus]")?.focus();
+        if (!this.gui.busy) {
+          // Let users choose a sign-in method first; focus the password field after a failed attempt.
+          const focusTarget =
+            (this.gui.message && dialog.querySelector('[name="password"]')) || dialog.querySelector("[autofocus]");
+          focusTarget?.focus();
+        }
       } else if (dialog.open) {
         dialog.close();
         this.element.querySelector("[data-user-trigger] button")?.focus();
