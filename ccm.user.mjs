@@ -1,3 +1,10 @@
+/**
+ * Local authentication and coordination of independent authentication providers.
+ *
+ * @author André Kless <andre.kless@web.de>
+ * @copyright 2026 André Kless
+ * @license MIT
+ */
 export const component = {
   name: "user",
   ccm: "././libs/framework/ccm.js",
