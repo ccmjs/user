@@ -203,8 +203,7 @@ export const component = {
       this.gui.message = "";
       this.gui.mode = "login";
       this.gui.dialog = false;
-      cancelPendingLogin();
-      await this.emit("cancel").catch(console.error);
+      await cancelPendingLogin();
       render();
       if (changed) await this.emit("logout");
     };
@@ -350,7 +349,6 @@ export const component = {
       cancel: (event) => {
         event?.preventDefault();
         if (this.gui.busy && this.gui.mode === "delete") return;
-        this.emit("cancel").catch(console.error);
         this.gui.dialog = false;
         requestVersion++;
         this.gui.busy = false;
@@ -591,12 +589,18 @@ export const component = {
       return promise;
     };
 
-    /** Rejects waiting callers without changing an existing authenticated session. */
+    /**
+     * Rejects waiting login callers and asks extensions to cancel their pending work.
+     * @returns {Promise<void>} Completes after cancel event handling; extension errors are logged
+     */
     const cancelPendingLogin = () => {
-      if (!pendingLogin) return;
-      const { reject } = pendingLogin;
-      pendingLogin = null;
-      reject(new DOMException(this.labels.loginCancelled, "AbortError"));
+      if (pendingLogin) {
+        const { reject } = pendingLogin;
+        pendingLogin = null;
+        reject(new DOMException(this.labels.loginCancelled, "AbortError"));
+      }
+      // Extensions may have pending work even when no caller is waiting for the login dialog.
+      return this.emit("cancel").catch(console.error);
     };
   },
 };
