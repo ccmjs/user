@@ -115,16 +115,16 @@ test("registration and account deletion delegate and notify each instance once",
   await assert.rejects(child.app.register(), /disabled/);
 });
 
-test("Google callbacks use the owner transport and preserve provider identity", async () => {
+test("External callbacks use the owner transport and preserve provider identity", async () => {
   const root = create(null, { ccm: { helper, load: async request => {
-    assert.equal(request.params.login, "google");
-    return { key: "google_user", token: "jwt", user: "Tea", realm: "ccm", provider: "google" };
+    assert.equal(request.params.login, "campus");
+    return { key: "campus_user", token: "jwt", user: "Tea", realm: "ccm", provider: "campus" };
   } } });
   const child = create(root.host);
   await root.app.init(); await child.app.init();
   await child.app.ready(); await root.app.ready();
-  await child.app.login({ idToken: "proof" }, "google");
-  assert.equal(root.app.getState().provider, "google");
+  await child.app.login({ code: "proof" }, "campus");
+  assert.equal(root.app.getState().provider, "campus");
   assert.deepEqual(child.app.getState(), root.app.getState());
 });
 

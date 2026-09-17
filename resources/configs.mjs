@@ -1,10 +1,11 @@
-/** Demo configuration used by index.html, enabling local registration and Google sign-in. */
+/** Demo with local registration and an independent Google authentication component. */
 export const demo = {
   registration: true,
-  extensions: [["ccm.load", "././resources/extensions.mjs#google"]],
-  google: {
-    url: "https://ccmjs.github.io/user/auth/google/google.html",
+  providers: [["ccm.instance", "../google_login/ccm.google_login.mjs", {
+    url: "https://ccmjs.github.io/google_login/auth.html",
+    server: "http://localhost:8080",
+    realm: "ccm",
     displayName: "name", // name, given_name, family_name, email or id
     picture: true,
-  },
+  }]],
 };

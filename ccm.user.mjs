@@ -28,6 +28,9 @@ export const component = {
     // Extension points
     extensions: [],
 
+    /** Independent authentication components mounted in the login dialog. */
+    providers: [],
+
     // Inline SVG markup or image URLs (SVG, PNG, JPG)
     icons: {
       login: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -123,6 +126,12 @@ export const component = {
     /** Shared promise and callbacks for callers waiting on the login form. */
     let pendingLogin;
 
+    /** Provider currently delivering external credentials, or null between attempts. */
+    let activeProvider = null;
+
+    /** Session source retained after logout so automatic re-login uses the same provider. */
+    let selectedProvider = null;
+
     /** Normalizes the server URL before any instance enters ready(). */
     this.init = async () => {
       this.url = new URL(this.url).href;
@@ -142,7 +151,17 @@ export const component = {
         return;
       }
 
+      // Only the session owner connects provider events to its CCM session.
+      for (const provider of this.providers) {
+        provider.extensions = [].concat(provider.extensions || [], handleProviderEvent);
+      }
+
       // If no parent user instance has the same server URL and realm, restore this instance's session from sessionStorage.
+      selectedProvider = this.providers.find(provider => provider.isLoggedIn()) ?? null;
+      if (selectedProvider) {
+        sessionStorageAccess("removeItem");
+        return;
+      }
       const saved = sessionStorageAccess("getItem");
       if (!saved) return;
       try {
@@ -175,7 +194,13 @@ export const component = {
      * @returns {Promise<UserIdentity>} User metadata
      */
     this.login = (credentials, provider = "ccm") => {
-      if (token) return Promise.resolve({ ...state });
+      if (this.isLoggedIn()) return Promise.resolve(this.getState());
+      if (!credentials && selectedProvider) {
+        this.gui.mode = "login";
+        this.gui.dialog = true;
+        render();
+        return selectedProvider.login();
+      }
       return credentials ? authenticate("login", credentials, provider) : promptLogin("login");
     };
 
@@ -187,7 +212,7 @@ export const component = {
      */
     this.register = (credentials) => {
       if (!this.registration) return Promise.reject(new Error(this.labels.registrationDisabled));
-      if (token) return Promise.resolve({ ...state });
+      if (this.isLoggedIn()) return Promise.resolve(this.getState());
       return credentials ? authenticate("register", credentials) : promptLogin("register");
     };
 
@@ -195,7 +220,8 @@ export const component = {
     this.logout = async () => {
       requestVersion++;
       this.gui.busy = false;
-      const changed = token !== null;
+      const changed = this.isLoggedIn();
+      const provider = selectedProvider;
       token = null;
       sessionStorageAccess("removeItem");
       state = null;
@@ -205,7 +231,8 @@ export const component = {
       this.gui.dialog = false;
       await cancelPendingLogin();
       render();
-      if (changed) await this.emit("logout");
+      if (provider) await provider.logout();
+      else if (changed) await this.emit("logout");
     };
 
     /** Marks the current account as deleted and discards its local session. */
@@ -235,16 +262,16 @@ export const component = {
     };
 
     /** Returns whether this instance holds a server-issued token. */
-    this.isLoggedIn = () => token !== null;
+    this.isLoggedIn = () => selectedProvider ? selectedProvider.isLoggedIn() : token !== null;
 
     /**
      * Returns a copy of the shared user metadata, or `null` when logged out.
      * @returns {UserIdentity|null}
      */
-    this.getState = () => state && { ...state };
+    this.getState = () => selectedProvider ? selectedProvider.getState() : state && { ...state };
 
     /** Returns the JWT, or null when logged out. */
-    this.getToken = () => token;
+    this.getToken = () => selectedProvider ? selectedProvider.getToken() : token;
 
     /** Returns the shared authentication instance for coordinating concurrent re-login attempts. */
     this.getSessionOwner = () => sessionOwner ?? this;
@@ -256,7 +283,7 @@ export const component = {
 
       /** Opens the profile when signed in, otherwise starts an interactive login. */
       open: () => {
-        if (token) {
+        if (this.isLoggedIn()) {
           this.gui.mode = "profile";
           this.gui.dialog = true;
           this.gui.message = "";
@@ -461,8 +488,58 @@ export const component = {
         this.element.querySelector("[data-user-trigger] button")?.focus();
       }
 
-      // Let extensions add UI to the updated view, such as external login buttons.
-      return this.emit("render").catch(console.error);
+      // Mount independent provider components in the login view, preserving their instances.
+      const slot = dialog.querySelector("[data-auth-providers]");
+      const rendered = [];
+      for (const provider of this.providers) {
+        provider.setDisabled(this.gui.busy || !this.gui.dialog || this.isLoggedIn() || this.gui.mode !== "login");
+        if (slot && this.gui.dialog && !this.isLoggedIn()) {
+          slot.append(provider.host);
+          rendered.push(provider.start());
+        }
+      }
+      if (!rendered.length) return this.emit("render").catch(console.error);
+      return Promise.all(rendered).then(() => this.emit("render")).catch(console.error);
+    };
+
+    /** Uses provider-owned sessions without copying their tokens or issuing another login request. */
+    const handleProviderEvent = async ({ app: provider, type }) => {
+      if (type === "ready" && !token && !selectedProvider && provider.isLoggedIn()) {
+        selectedProvider = provider;
+        render();
+      } else if (type === "before-login") {
+        if (this.gui.busy || !this.gui.dialog || this.isLoggedIn() || this.gui.mode !== "login")
+          throw new Error(this.labels.authenticationBusy);
+        activeProvider = provider;
+        this.gui.busy = true;
+        this.gui.message = "";
+        render();
+      } else if (activeProvider === provider && type === "login") {
+        if (!provider.isLoggedIn()) throw new Error(this.labels.invalidAuthenticationResponse);
+        selectedProvider = provider;
+        token = null;
+        state = null;
+        sessionStorageAccess("removeItem");
+        this.gui.busy = false;
+        this.gui.dialog = false;
+        const waiting = pendingLogin;
+        pendingLogin = null;
+        waiting?.resolve(this.getState());
+        render();
+        await this.emit("login");
+      } else if (selectedProvider === provider && type === "logout") {
+        requestVersion++;
+        this.gui.busy = false;
+        this.gui.dialog = false;
+        this.gui.mode = "login";
+        render();
+        await this.emit("logout");
+      } else if (activeProvider === provider && ["cancel", "error", "finish"].includes(type)) {
+        activeProvider = null;
+        this.gui.busy = false;
+        if (type === "error" && !this.isLoggedIn()) this.gui.message = this.labels.failed;
+        render();
+      }
     };
 
     /**
@@ -531,6 +608,7 @@ export const component = {
           throw new Error(this.labels.invalidAuthenticationResponse);
 
         // Keep the session in memory and save it for page reloads if persistence is enabled.
+        selectedProvider = null;
         token = result.token;
         state = identity;
         sessionStorageAccess("setItem", JSON.stringify({ token, ...state }));
@@ -599,8 +677,11 @@ export const component = {
         pendingLogin = null;
         reject(new DOMException(this.labels.loginCancelled, "AbortError"));
       }
-      // Extensions may have pending work even when no caller is waiting for the login dialog.
-      return this.emit("cancel").catch(console.error);
+      // Provider work may exist even when no caller is waiting for the login dialog.
+      activeProvider = null;
+      const cancelled = this.providers.map(provider => provider.cancel());
+      if (!cancelled.length) return this.emit("cancel").catch(console.error);
+      return Promise.all(cancelled).then(() => this.emit("cancel")).catch(console.error);
     };
   },
 };

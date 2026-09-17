@@ -227,11 +227,11 @@ test("reload restores token and metadata without a server request or login event
   assert.equal(storage.size, 0);
 });
 
-test("Google sessions save only CCM credentials and restore the selected realm", async t => {
+test("External sessions save only CCM credentials and restore the selected realm", async t => {
   const storage = browserStorage(t);
-  const metadata = { key: "google_account", user: "Google user", realm: "tea", provider: "google", picture: "https://example.org/avatar.png" };
+  const metadata = { key: "campus_account", user: "External user", realm: "tea", provider: "campus", picture: "https://example.org/avatar.png" };
   const { app } = create(async () => ({ ...metadata, token: "ccm-jwt" }), { realm: "tea" });
-  await app.login({ idToken: "google-proof" }, "google");
+  await app.login({ code: "campus-proof" }, "campus");
   assert.deepEqual(JSON.parse([...storage.values()][0]), { ...metadata, token: "ccm-jwt" });
   const { app: reloaded } = create(undefined, { realm: "tea" });
   await reloaded.init(); await reloaded.ready();
@@ -325,10 +325,10 @@ test("identity keys must be single valid CCM keys on login and restoration", asy
 test("trigger and profile show the provider picture with a standard icon fallback", async () => {
   const views = await import("../resources/views.mjs");
   const { app } = create(async () => ({ key: "account", token: "jwt", user: "Person", realm: "ccm",
-    provider: "google", picture: "https://example.org/avatar.png" }));
+    provider: "campus", picture: "https://example.org/avatar.png" }));
   app.ui.html = (parts, ...values) => parts.reduce((text, part, i) => text + part + (values[i] || ""), "");
   assert.doesNotMatch(views.trigger(app), /data-on-error/);
-  await app.login({ idToken: "proof" }, "google");
+  await app.login({ code: "proof" }, "campus");
   assert.match(views.trigger(app), /src="https:\/\/example.org\/avatar.png"/);
   assert.match(views.trigger(app), /data-on-error="hideProfilePicture"/);
   assert.match(views.trigger(app), /class="icon"/);

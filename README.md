@@ -1,6 +1,6 @@
 # ccmjs User Component
 
-A user component for local `ccm` and Google authentication with ccm-server.
+A user component for local `ccm` authentication and independent authentication provider components.
 It provides registration, login and logout without a build step.
 
 ## Local demo
@@ -48,7 +48,7 @@ when ending observation or changing users.
 | `start()`                      | Renders the current state without discarding the session               |
 | `login()`                      | Opens the form and waits for successful authentication                 |
 | `login({ user, password })`    | Logs in with supplied credentials                                      |
-| `login({ idToken }, "google")` | Logs in with a Google ID token verified by the server                  |
+| `login(credentials, provider)` | Exchanges external credentials directly with a configured server provider |
 | `register()`                   | Opens the registration form and waits for success                      |
 | `register({ user, password })` | Creates an account and logs in                                         |
 | `deleteAccount()`              | Marks the authenticated account as deleted and signs out after success |
@@ -113,13 +113,12 @@ and realm read the same saved session on initialization but do not synchronize l
 changes. Instances sharing an ancestor user instead use its live session as described below.
 Browser storage belongs to the embedding page's origin, not the component's host.
 It is accessible to JavaScript on that origin. Blocked storage falls back to memory.
-Passwords, Google ID tokens and GUI state are never saved.
+Passwords, external authentication proofs and GUI state are never saved.
 
 Logout and successful account deletion remove the saved token. Token expiration is
 verified by the server; `isLoggedIn()` only checks the in-memory session.
 Logout does not revoke a previously issued JWT. Use HTTPS in deployment.
-Google popup login is described in [auth/google/GOOGLE-SETUP.md](auth/google/GOOGLE-SETUP.md).
-MIA OIDC remains a separate future step. Dataset permissions are enforced by the server.
+Provider-specific setup belongs to each provider component. Dataset permissions are enforced by the server.
 
 ## Tests
 
@@ -128,7 +127,7 @@ node --test
 ```
 
 These tests cover authentication, concurrent requests, session restoration, instance
-hierarchies, view output, and the Google popup handshake and failure paths using
+hierarchies, view output, and delegation to provider-owned sessions using
 controlled transports and browser substitutes. The sibling ccm-server repository
 contains real-server integration tests. Native dialog focus, Enter submission,
 CSS animations and password-manager extensions still need testing in a real browser.
@@ -163,11 +162,10 @@ the profile picture or user icon with the username. Clicking this opens the prof
 user ID, provider, sign-out action and a discreet delete-account action.
 Profile editing and image uploads are not implemented.
 
-Google sign-in can supply an optional `picture` URL in `getState()`. The trigger and profile
+Authentication providers can supply an optional `picture` URL in `getState()`. The trigger and profile
 show this image instead of the standard user icon, falling back to the icon if
-loading fails. The URL is cached with the session; loading the image makes an
-HTTPS request to its host without sending the page URL as a referrer. No additional
-Google permissions are requested.
+loading fails. The session owner caches the URL; loading the image makes an
+HTTPS request to its host without sending the page URL as a referrer.
 
 Escape or the close button dismisses the modal. Dismissing an interactive login
 rejects its promise with `AbortError`; dismissing the profile keeps the session.
@@ -204,7 +202,7 @@ Set `realm: "tea-app"` alongside the absolute server `url` to use accounts in
 `__users-tea-app`. The default is `realm: "ccm"` (`__users-ccm`). Realm names use
 1–32 lowercase letters, digits, underscores or hyphens, beginning with a letter.
 `state.realm` identifies this user area; `state.provider` identifies the sign-in
-method (`ccm` or `google`). Google can be used within any realm.
+method (`ccm` or an external provider identifier).
 
 A dataset's owner identity is `${user.getState().realm}:${user.getState().key}`. When creating
 a protected dataset, pass `_` with the desired read/write/delete grants; the server
@@ -246,59 +244,41 @@ module versions can cooperate if they implement this interface; older versions
 without it remain independent. Applications continue to use only `config.user`
 and `extensions` and do not need to call these coordination methods themselves.
 
-## External authentication extensions
+## Authentication provider components
 
-The component has no Google-specific configuration or UI. Enable Google by adding
-its extension (the demo already does this):
+External authentication can be supplied by independent CCM components:
 
 ```javascript
-const config = {
-  extensions: [["ccm.load", "././resources/extensions.mjs#google"]],
-  google: {
-    url: "https://ccmjs.github.io/user/auth/google/google.html",
-    labels: {button: "Sign in with Google"},
-  },
-};
+providers: [["ccm.instance", "../google_login/ccm.google_login.mjs", {
+  url: "https://ccmjs.github.io/google_login/auth.html",
+  server: "http://localhost:8080",
+  realm: "ccm",
+  displayName: "name",
+  picture: true,
+}]],
 ```
 
-`resources/extensions.mjs` exports event handlers loaded through CCM dependencies,
-following the same convention as the quiz component. Only the Google extension reads
-`config.google`; the user component itself does not interpret these settings.
-The extension creates a handler per instance on first use, preserving its popup state
-across subsequent events. Omit the extension to disable Google login.
-The Google setup guide documents nested popup label overrides.
+The demo uses this configuration. Serve the common parent directory when testing the
+sibling repositories locally. Publish `google_login` before using its component URL
+on GitHub Pages. The provider callback is hosted at `https://ccmjs.github.io/google_login/auth.html`.
 
-Other providers can use the same public extension contract:
+A provider renders in its own `host` and owns its CCM session. It implements
+`start()`, `login()`, `logout()`, `isLoggedIn()`, `getState()`, `getToken()`,
+`setDisabled(boolean)` and `cancel()`, and exposes an `extensions` array.
+Its `login` event means the server has already accepted the session.
+The User component performs no second exchange and never copies the provider's token
+or metadata into its own session storage. Instead, its getters delegate to the selected
+provider. Logout delegates too; the selected provider is retained for the next login,
+including automatic re-login after expiry. A restored provider session can be selected
+on initialization. If several are restored, the first available configured provider wins.
 
-- `render` supplies `{ app, type }` after the dialog is updated.
-  Add buttons to `app.element.querySelector("[data-auth-providers]")`. The default view
-  provides this slot only in login mode. Check `app.gui.dialog` and `app.isLoggedIn()`;
-  render events also occur while the dialog is closed. Custom views must provide
-  the slot if they support external login. Append without replacing other extensions' buttons.
-- `cancel` runs when the dialog is dismissed or `logout()` begins. Cancel outstanding
-  provider work and ignore late results.
-- All events await extensions sequentially and then reach subscribed child instances.
-  Provider extensions ignore child instances using `app.getSessionOwner() !== app`.
-  An extension error stops further dispatch. Rendering and cancellation report hook
-  errors to the console; `start()` waits for the render hooks to finish.
-- Set `app.gui.busy` while collecting external credentials, update `app.gui.message`
-  for errors, and call `app.start()` to refresh the UI. Clear busy before calling
-  `app.login(credentials, provider)`. The server validates provider credentials and
-  returns `{ key, user, realm, provider, token }` and optionally `picture`.
+`before-login` marks the User UI busy; `cancel`, `error` and `finish` release it.
+Provider logout is forwarded to the User component's extensions. Closing the dialog
+cancels pending provider work but does not sign out an existing session. Providers
+must invalidate late results after cancellation and preserve established sessions
+when their event extensions fail. Child User instances still delegate to the owner.
 
-An extension manages its own pending operations, keyed by user instance when the
-same extension function is reused. Only the session owner's extensions add UI.
-The generic divider and button layout belong to the component; provider branding,
-labels and popup behavior belong to the extension. MIA can follow this contract
-without another provider-specific branch in the user component.
-
-### Google profile settings
-
-Set `google.displayName` to `"name"` (default), `"given_name"`, `"family_name"`,
-`"email"` or `"id"`. The server selects the value from the verified Google ID token.
-`"id"` means Google's subject (`sub`), not the local CCM account key. Missing or blank
-fields fall back to `sub`. The selected display name does not change account identity.
-Set `google.picture` to `false` to omit the picture from the returned and saved session
-(default: `true`). These settings apply on the next Google login, not to restored sessions.
-They do not change which claims Google includes in its ID token. The CCM server must
-support the `displayName` and `picture` credential options.
+Google-specific configuration belongs to the Google instance. Configure its server
+and realm for the app's data access. Local username/password sessions remain owned
+by the User component. The Google component has no special provider-only mode and
+can also be used directly as an app's `config.user`.
