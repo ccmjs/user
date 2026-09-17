@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
-import { defaults } from "./extension.mjs";
+import { defaults } from "../extension.mjs";
 
 test("hosted page requires validated opener handshake before automatically loading Google", async () => {
   const elements = new Map();
@@ -19,7 +19,7 @@ test("hosted page requires validated opener handshake before automatically loadi
     document: { documentElement: {}, querySelector: element, createElement() { return { remove() { this.removed = true; } }; }, head: { append(script) { scripts.push(script); } } },
     google: { accounts: { id: { initialize(value) { options = value; }, renderButton() {} } } },
   };
-  const source = (await readFile(new URL('./google-page.mjs', import.meta.url), 'utf8')).replace('import { clientId } from "./google-config.mjs";', '');
+  const source = (await readFile(new URL('../google-page.mjs', import.meta.url), 'utf8')).replace('import { clientId } from "./google-config.mjs";', '');
   vm.runInNewContext(source, context);
   assert.equal(scripts.length, 0);
   receive({ source: {}, origin: 'https://app.example', data: { type: 'ccm-google-init', request: 'test' } });

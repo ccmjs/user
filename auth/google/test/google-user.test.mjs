@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { component } from "../../ccm.user.mjs";
-import { helper } from "../../test/support/framework.mjs";
+import { component } from "../../../ccm.user.mjs";
+import { helper } from "../../../test/support/framework.mjs";
 
 function create(load) {
   const app = Object.assign(new component.Instance(), component.config, {

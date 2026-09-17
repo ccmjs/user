@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { google, defaults } from "./extension.mjs";
-import { demo } from "../../resources/configs.mjs";
-import { component } from "../../ccm.user.mjs";
-import { helper } from "../../test/support/framework.mjs";
+import { google, defaults } from "../extension.mjs";
+import { demo } from "../../../resources/configs.mjs";
+import { component } from "../../../ccm.user.mjs";
+import { helper } from "../../../test/support/framework.mjs";
 
 /** Minimal DOM surface to exercise extension insertion through the real render hook. */
 function create(extensions, load = async () => ({
@@ -66,7 +66,7 @@ test("Google extension mounts once per render and independently owns its labels"
   const [loader, resource] = demo.extensions[0];
   assert.equal(loader, "ccm.load");
   const [path, name] = resource.split("#");
-  const extension = (await import(new URL(`../../${path}`, import.meta.url)))[name];
+  const extension = (await import(new URL(`../../../${path}`, import.meta.url)))[name];
   assert.equal(typeof extension, "function");
   const { app, buttons } = create([extension]);
   app.google = { labels: { button: "Google verwenden", popup: { heading: "Anmelden für" } } };

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { login } from "./google.mjs";
+import { login } from "../google.mjs";
 
 test("popup accepts only its own origin, window and request and cleans up", async t => {
   const previous = { window: globalThis.window, location: globalThis.location };
