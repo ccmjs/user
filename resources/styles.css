@@ -52,6 +52,8 @@
   }
 
   .account-button {
+    min-block-size: 2.5rem;
+    padding-block: .375rem;
     max-inline-size: 100%;
     background: #2058b5;
     color: white;
