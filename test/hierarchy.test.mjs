@@ -186,14 +186,3 @@ test("separate module versions delegate through the public interface and retain 
   assert.equal(child.getState(), null);
   assert.deepEqual(events.map(event => event.type), ["login", "cancel", "logout"]);
 });
-
-test("subscribers can unsubscribe without affecting application extensions", async () => {
-  const { app, calls } = create();
-  const received = [];
-  const unsubscribe = app.subscribe(type => received.push(type));
-  await app.login({ user: "Tea", password: "pw" });
-  unsubscribe();
-  await app.logout();
-  assert.deepEqual(received, ["login"]);
-  assert.deepEqual(calls.events.map(event => event.type), ["login", "logout"]);
-});

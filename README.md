@@ -239,7 +239,7 @@ interactive login promise, without canceling each other's dialogs.
 
 Version-independent cooperation uses the public `subscribe(listener)` and
 `getSessionOwner()` methods, together with the authentication methods above.
-`subscribe` receives event types and returns an unsubscribe function. Child instances
+Registered listeners receive event types. Child instances
 subscribe once during `ready()` and dispatch the received events through their
 own `emit()`. No module-level registry or global browser state is needed. Different
 module versions can cooperate if they implement this interface; older versions

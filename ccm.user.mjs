@@ -7,7 +7,7 @@ export const component = {
     // Absolute server API URL for registration, login, account deletion
     url: "http://localhost:8080",
 
-    // Independent user area on the server; also separates saved sessions
+    // // User area on the server; each realm has its own saved login session.
     realm: "ccm",
 
     // Keep the CCM token and user metadata across reloads in this tab; logout remains local
@@ -371,18 +371,14 @@ export const component = {
     };
 
     /**
-     * Subscribes to this instance's events without depending on its module version.
+     * Registers an event listener, allowing child user instances to forward events to their own extensions.
      * @param {function(string): (void|Promise<void>)} listener - Receives the event type
-     * @returns {function(): boolean} Removes the listener
      */
-    this.subscribe = (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    };
+    this.subscribe = (listener) => listeners.add(listener);
 
     /**
      * Finds the highest compatible ancestor user instance with the same server and realm.
-     * @returns {object|null} Matching user instance, or null if this instance owns the session
+     * @returns {object|null} Matching user instance, or `null` if this instance owns the session
      */
     const findSessionOwner = () => {
       let owner = null;
@@ -410,7 +406,7 @@ export const component = {
      *
      * @param {"getItem"|"setItem"|"removeItem"} method - Storage operation to perform
      * @param {string} [value] - Serialized session to save; required only for setItem
-     * @returns {string|null} Serialized session for getItem, otherwise null; also null
+     * @returns {string|null} Serialized session for getItem, otherwise `null`; also `null`
      *   when no session exists, persistence is disabled or storage access fails
      */
     const sessionStorageAccess = (method, value) => {
@@ -439,29 +435,35 @@ export const component = {
 
     /** Updates the views while preserving the existing dialog element. */
     const render = () => {
-      if (sessionOwner) {
-        this.element?.replaceChildren();
-        return;
-      }
-      // Replacing an open dialog would lose its native modal state and focus handling.
+      // Only the highest matching user instance displays the UI; child user instances keep their containers empty.
+      if (sessionOwner) return this.element?.replaceChildren();
+
+      // Create the UI shell only once so updates preserve the existing dialog, its modal state and focus handling.
       if (!this.element?.querySelector("[data-user-shell]")) this.ui.render(this.views.main(this), this.element, this);
+
+      /** Existing dialog whose contents are updated without replacing the dialog itself. */
       const dialog = this.element?.querySelector("dialog");
       if (!dialog) return;
+
+      // Update the login/profile trigger and the form or profile shown inside the dialog.
       this.ui.render(this.views.trigger(this), this.element.querySelector("[data-user-trigger]"), this);
       this.ui.render(this.views.dialog(this), dialog, this);
 
+      // Match the native dialog's visibility to the GUI state without reopening an already open dialog.
       if (this.gui.dialog) {
         if (!dialog.open) dialog.showModal();
+        // Avoid moving focus while an authentication or account deletion request is in progress.
         if (!this.gui.busy) {
-          // Focus the initial field or action; after a failed login, focus the password field.
-          const focusTarget =
-            (this.gui.message && dialog.querySelector('[name="password"]')) || dialog.querySelector("[autofocus]");
-          focusTarget?.focus();
+          // Focus the field or action marked as the starting point in the current view.
+          dialog.querySelector("[autofocus]")?.focus();
         }
       } else if (dialog.open) {
+        // Return keyboard focus to the trigger when the dialog closes.
         dialog.close();
         this.element.querySelector("[data-user-trigger] button")?.focus();
       }
+
+      // Let extensions add UI to the updated view, such as external login buttons.
       return this.emit("render").catch(console.error);
     };
 
