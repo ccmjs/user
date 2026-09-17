@@ -125,3 +125,14 @@ merges partial label overrides, including nested popup labels. Labels travel thr
 the validated opener handshake and are inserted as plain text. Before that handshake,
 the page uses English fallback text. `language` sets the page language and Google
 button locale; Google's account selection and consent screens remain controlled by Google.
+
+### Google profile settings
+
+Set `google.displayName` to `"name"` (default), `"given_name"`, `"family_name"`,
+`"email"` or `"id"`. The server selects the value from the verified Google ID token.
+`"id"` means Google's subject (`sub`), not the local CCM account key. Missing or blank
+fields fall back to `sub`. The selected display name does not change account identity.
+Set `google.picture` to `false` to omit the picture from the returned and saved session
+(default: `true`). These settings apply on the next Google login, not to restored sessions.
+They do not change which claims Google includes in its ID token. The CCM server must
+support the `displayName` and `picture` credential options.

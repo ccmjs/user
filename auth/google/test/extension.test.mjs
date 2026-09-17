@@ -145,3 +145,21 @@ test("Google and an unrelated provider can share the slot; registration has no p
   app.events.cancel();
   await rejected;
 });
+
+test("Google extension sends display preferences with the proof of identity", async t => {
+  for (const settings of [{}, { displayName: "id", picture: false }]) await t.test(JSON.stringify(settings), async t => {
+    const browserUI = browser(t);
+    const { app, buttons } = create([google(settings)], async request => {
+      assert.deepEqual(request.params.credentials, {
+        idToken: "proof", displayName: settings.displayName ?? "name", picture: settings.picture ?? true,
+      });
+      return { key: "account", user: "google-id", realm: "ccm", provider: "google", token: "jwt" };
+    });
+    const waiting = app.login();
+    const operation = buttons()[0].click();
+    browserUI.reply("ccm-google-result", { idToken: "proof" });
+    await operation;
+    assert.equal((await waiting).user, "google-id");
+    assert.equal(app.getState().picture, undefined);
+  });
+});

@@ -291,3 +291,14 @@ same extension function is reused. Only the session owner's extensions add UI.
 The generic divider and button layout belong to the component; provider branding,
 labels and popup behavior belong to the extension. MIA can follow this contract
 without another provider-specific branch in the user component.
+
+### Google profile settings
+
+Set `google.displayName` to `"name"` (default), `"given_name"`, `"family_name"`,
+`"email"` or `"id"`. The server selects the value from the verified Google ID token.
+`"id"` means Google's subject (`sub`), not the local CCM account key. Missing or blank
+fields fall back to `sub`. The selected display name does not change account identity.
+Set `google.picture` to `false` to omit the picture from the returned and saved session
+(default: `true`). These settings apply on the next Google login, not to restored sessions.
+They do not change which claims Google includes in its ID token. The CCM server must
+support the `displayName` and `picture` credential options.

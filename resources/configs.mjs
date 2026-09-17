@@ -4,5 +4,7 @@ export const demo = {
   extensions: [["ccm.load", "././resources/extensions.mjs#google"]],
   google: {
     url: "https://ccmjs.github.io/user/auth/google/google.html",
+    displayName: "name", // name, given_name, family_name, email or id
+    picture: true,
   },
 };

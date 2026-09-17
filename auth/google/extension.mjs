@@ -3,6 +3,8 @@ import { login as openPopup } from "./google.mjs";
 /** Default configuration for the optional Google authentication extension. */
 export const defaults = {
   url: new URL("./google.html", import.meta.url).href,
+  displayName: "name",
+  picture: true,
   labels: {
     button: "Sign in with Google",
     failed: "Google sign-in failed. Please try again.",
@@ -26,8 +28,10 @@ export const defaults = {
 
 /**
  * Creates an extension that adds Google sign-in to a user component's provider slot.
- * @param {Object} [config] - Optional popup URL and label overrides
+ * @param {Object} [config] - Optional popup URL, profile settings and label overrides
  * @param {string} [config.url] - Hosted Google login page
+ * @param {"name"|"given_name"|"family_name"|"email"|"id"} [config.displayName="name"] - Verified claim used as display name
+ * @param {boolean} [config.picture=true] - Include the profile picture in the session
  * @param {Object} [config.labels] - Button, error and nested popup labels
  * @returns {Function} Handler for the user component's render and cancel events
  */
@@ -55,7 +59,11 @@ export function google(config = {}) {
       const credentials = await operation.promise;
       if (pending.get(app) !== operation || !app.gui.dialog) return;
       app.gui.busy = false;
-      await app.login(credentials, "google");
+      await app.login({
+        ...credentials,
+        displayName: config.displayName ?? defaults.displayName,
+        picture: config.picture ?? defaults.picture,
+      }, "google");
     } catch (error) {
       if (pending.get(app) !== operation) return;
       if (app.isLoggedIn()) console.error(error);
