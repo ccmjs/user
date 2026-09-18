@@ -1,3 +1,4 @@
+import * as templates from "./support/templates.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { component } from "../ccm.user.mjs";
@@ -294,16 +295,16 @@ test("blocked sessionStorage does not prevent login or logout", async t => {
 test("views handle null state before login and after logout", async () => {
   const views = await import("../resources/views.mjs");
   const { app } = create();
-  app.ui.html = (parts, ...values) => parts.reduce((text, part, i) => text + part + (values[i] ?? ""), "");
-  assert.match(views.trigger(app), /Sign in/);
-  assert.match(views.dialog(app), /name="password"/);
+  Object.assign(app.ui, templates);
+  assert.match(String(views.trigger(app)), /Sign in/);
+  assert.match(String(views.dialog(app)), /name="password"/);
   await app.login({ user: "André", password: "pw" });
-  assert.match(views.trigger(app), /André/);
-  assert.match(views.dialog(app), /Your profile/);
+  assert.match(String(views.trigger(app)), /André/);
+  assert.match(String(views.dialog(app)), /Your profile/);
   await app.logout();
   assert.equal(app.getState(), null);
-  assert.match(views.trigger(app), /Sign in/);
-  assert.match(views.dialog(app), /name="password"/);
+  assert.match(String(views.trigger(app)), /Sign in/);
+  assert.match(String(views.dialog(app)), /name="password"/);
 });
 
 test("identity keys must be single valid CCM keys on login and restoration", async t => {
@@ -326,19 +327,19 @@ test("trigger and profile show the provider picture with a standard icon fallbac
   const views = await import("../resources/views.mjs");
   const { app } = create(async () => ({ key: "account", token: "jwt", user: "Person", realm: "ccm",
     provider: "campus", picture: "https://example.org/avatar.png" }));
-  app.ui.html = (parts, ...values) => parts.reduce((text, part, i) => text + part + (values[i] || ""), "");
-  assert.doesNotMatch(views.trigger(app), /data-on-error/);
+  Object.assign(app.ui, templates);
+  assert.doesNotMatch(String(views.trigger(app)), /data-on-error/);
   await app.login({ code: "proof" }, "campus");
-  assert.match(views.trigger(app), /src="https:\/\/example.org\/avatar.png"/);
-  assert.match(views.trigger(app), /data-on-error="hideProfilePicture"/);
-  assert.match(views.trigger(app), /class="icon"/);
-  assert.match(views.dialog(app), /src="https:\/\/example.org\/avatar.png"/);
-  assert.match(views.dialog(app), /data-on-error="hideProfilePicture"/);
+  assert.match(String(views.trigger(app)), /src="https:\/\/example.org\/avatar.png"/);
+  assert.match(String(views.trigger(app)), /data-on-error="hideProfilePicture"/);
+  assert.match(String(views.trigger(app)), /class="icon"/);
+  assert.match(String(views.dialog(app)), /src="https:\/\/example.org\/avatar.png"/);
+  assert.match(String(views.dialog(app)), /data-on-error="hideProfilePicture"/);
   let removed = false;
   app.events.hideProfilePicture({ currentTarget: { remove() { removed = true; } } });
   assert.equal(removed, true);
   await app.logout();
-  assert.doesNotMatch(views.trigger(app), /avatar.png/);
+  assert.doesNotMatch(String(views.trigger(app)), /avatar.png/);
 });
 
 test("an old failed request cannot clear busy state or set errors on a newer login", async () => {
@@ -404,22 +405,21 @@ test("interactive login resolves even when a subsequent extension fails", async 
 test("views escape user text and offer a provider slot only in login mode", async () => {
   const views = await import("../resources/views.mjs");
   const { app } = create();
-  app.ui.html = (parts, ...values) => parts.reduce((text, part, i) =>
-    text + part + (values[i] === false || values[i] == null ? "" : values[i]), "");
+  Object.assign(app.ui, templates);
   app.gui.username = '\"><img src=x onerror=alert(1)>';
-  const login = views.dialog(app);
+  const login = String(views.dialog(app));
   assert.match(login, /data-auth-providers/);
   assert.match(login, /class="auth-divider"/);
   assert.doesNotMatch(login, /<img src=x/);
   assert.match(login, /&quot;&gt;&lt;img/);
   app.gui.mode = "register";
-  const registration = views.dialog(app);
+  const registration = String(views.dialog(app));
   assert.doesNotMatch(registration, /data-auth-providers|class="auth-divider"/);
   assert.match(registration, /name="confirmation"/);
   await app.login({ user: "<script>alert(1)</script>", password: "pw" });
-  assert.doesNotMatch(views.trigger(app), /<script>/);
-  assert.doesNotMatch(views.dialog(app), /<script>/);
-  assert.match(views.trigger(app), /&lt;script&gt;/);
+  assert.doesNotMatch(String(views.trigger(app)), /<script>/);
+  assert.doesNotMatch(String(views.dialog(app)), /<script>/);
+  assert.match(String(views.trigger(app)), /&lt;script&gt;/);
 });
 
 test("external credentials are provider-defined and pass unchanged to the server", async () => {

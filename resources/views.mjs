@@ -3,7 +3,7 @@ export function main(app) {
   return app.ui.html`
     <div data-user-shell>
       <div data-user-trigger></div>
-      <dialog aria-labelledby="${escape(app.index)}-title" data-on-cancel="cancel" data-on-click="closeOnBackdrop">
+      <dialog aria-labelledby="${app.index}-title" data-on-cancel="cancel" data-on-click="closeOnBackdrop">
       </dialog>
     </div>
   `;
@@ -17,10 +17,10 @@ export function trigger(app) {
     <button type="button" class="account-button ${app.isLoggedIn() ? "signed-in" : ""}"
             data-on-click="open" aria-haspopup="dialog">
       ${avatar(app)}
-      <span>${escape(state ? state.user : app.labels.login)}</span>
+      <span>${state ? state.user : app.labels.login}</span>
     </button>
     ${state && app.ui.html`<button type="button" class="logout-button" data-on-click="logout"
-        aria-label="${escape(app.labels.logout)}" title="${escape(app.labels.logout)}">${icon(app, "logout")}</button>`}
+        aria-label="${app.labels.logout}" title="${app.labels.logout}">${icon(app, "logout")}</button>`}
     </div>
   `;
 }
@@ -43,9 +43,9 @@ export function dialog(app) {
     <div class="dialog-container">
       <section class="card">
         <header class="dialog-header">
-          <h1 id="${escape(app.index)}-title">${escape(title)}</h1>
+          <h1 id="${app.index}-title">${title}</h1>
           <button type="button" class="close-button" data-on-click="cancel"
-                  aria-label="${escape(labels.close)}" ${deleting && gui.busy && "disabled"}>
+                  aria-label="${labels.close}" ${deleting && gui.busy && "disabled"}>
             ${icon(app, "close")}
           </button>
         </header>
@@ -62,22 +62,22 @@ function profile(app) {
   return app.ui.html`
     <div class="profile-heading">
       ${avatar(app)}
-      <span>${escape(state.user)}</span>
+      <span>${state.user}</span>
     </div>
     <dl class="profile-data">
-      <dt>${escape(labels.user)}</dt><dd>${escape(state.user)}</dd>
-      <dt>${escape(labels.userId)}</dt><dd class="user-id">${escape(state.key)}</dd>
-      <dt>${escape(labels.provider)}</dt><dd>${escape(state.provider)}</dd>
+      <dt>${labels.user}</dt><dd>${state.user}</dd>
+      <dt>${labels.userId}</dt><dd class="user-id">${state.key}</dd>
+      <dt>${labels.provider}</dt><dd>${state.provider}</dd>
     </dl>
     <button type="button" class="primary" data-on-click="logout" autofocus>
       ${icon(app, "logout")}
-      ${escape(labels.logout)}
+      ${labels.logout}
     </button>
     ${
       state.provider === "ccm" &&
       app.ui.html`<footer class="account-actions">
       <button type="button" class="delete-link" data-on-click="requestDelete">
-        ${escape(labels.deleteAccount)}
+        ${labels.deleteAccount}
       </button>
     </footer>`
     }
@@ -88,13 +88,13 @@ function profile(app) {
 function deletion(app) {
   const { gui, labels } = app;
   return app.ui.html`
-    <p class="description">${escape(labels.deleteDescription)}</p>
+    <p class="description">${labels.deleteDescription}</p>
     ${message(app)}
     <div class="actions">
       <button type="button" class="secondary" data-on-click="keepAccount"
-              ${gui.busy && "disabled"} autofocus>${escape(labels.keepAccount)}</button>
+              ${gui.busy && "disabled"} autofocus>${labels.keepAccount}</button>
       <button type="button" class="danger" data-on-click="deleteAccount"
-              ${gui.busy && "disabled"}>${escape(labels.confirmDelete)}</button>
+              ${gui.busy && "disabled"}>${labels.confirmDelete}</button>
     </div>
   `;
 }
@@ -105,16 +105,16 @@ function authentication(app) {
   const registering = gui.mode === "register";
   return app.ui.html`
     ${!registering && app.ui.html`<div class="auth-providers" data-auth-providers></div>
-      <div class="auth-divider">${escape(labels.or)}</div>`}
+      <div class="auth-divider">${labels.or}</div>`}
     <form data-on-submit="submit">
       <fieldset ${gui.busy && "disabled"}>
         <label>
-          ${escape(labels.user)}
+          ${labels.user}
           <input name="user" type="text" autocomplete="username"
-                 value="${escape(gui.username)}" required autofocus>
+                 value="${gui.username}" required autofocus>
         </label>
         <label>
-          ${escape(labels.password)}
+          ${labels.password}
           <input name="password" type="password"
                  autocomplete="${registering ? "new-password" : "current-password"}" required>
         </label>
@@ -122,20 +122,20 @@ function authentication(app) {
           registering &&
           app.ui.html`
           <label>
-            ${escape(labels.confirmation)}
+            ${labels.confirmation}
             <input name="confirmation" type="password" autocomplete="new-password" required>
           </label>
         `
         }
         ${message(app)}
-        <button type="submit" class="primary">${escape(registering ? labels.register : labels.login)}</button>
+        <button type="submit" class="primary">${registering ? labels.register : labels.login}</button>
       </fieldset>
     </form>
     ${
       app.registration &&
       app.ui.html`
       <button type="button" class="text-button" data-on-click="switchMode" ${gui.busy && "disabled"}>
-        ${escape(registering ? labels.showLogin : labels.showRegister)}
+        ${registering ? labels.showLogin : labels.showRegister}
       </button>
     `
     }
@@ -146,7 +146,7 @@ function authentication(app) {
 function message(app) {
   return app.ui.html`
     <p class="message" role="${app.gui.message ? "alert" : "status"}" aria-live="polite"
-    >${escape(app.gui.busy ? app.labels.pending : app.gui.message)}</p>
+    >${app.gui.busy ? app.labels.pending : app.gui.message}</p>
   `;
 }
 
@@ -156,7 +156,7 @@ function avatar(app) {
   return app.ui.html`
     <span class="avatar" aria-hidden="true">
       ${icon(app, state ? "user" : "login")}
-      ${state?.picture && app.ui.html`<img src="${escape(state.picture)}" alt="" referrerpolicy="no-referrer"
+      ${state?.picture && app.ui.html`<img src="${state.picture}" alt="" referrerpolicy="no-referrer"
         data-on-error="hideProfilePicture" />`}
     </span>
   `;
@@ -165,21 +165,6 @@ function avatar(app) {
 /** Renders trusted inline SVG configuration or an image URL. */
 function icon(app, name) {
   const source = app.icons[name].trim();
-  const content = /^<svg[\s>]/i.test(source) ? source : app.ui.html`<img src="${escape(source)}" alt="" />`;
+  const content = /^<svg[\s>]/i.test(source) ? app.ui.raw(source) : app.ui.html`<img src="${source}" alt="" />`;
   return app.ui.html`<span class="icon" aria-hidden="true">${content}</span>`;
-}
-
-/** Escapes text and quoted attribute values for ccm-ui templates. */
-function escape(value) {
-  return String(value ?? "").replace(
-    /[&<>"']/g,
-    (character) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[character],
-  );
 }
