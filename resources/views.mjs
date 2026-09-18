@@ -104,8 +104,6 @@ function authentication(app) {
   const { gui, labels } = app;
   const registering = gui.mode === "register";
   return app.ui.html`
-    ${!registering && app.ui.html`<div class="auth-providers" data-auth-providers></div>
-      <div class="auth-divider">${labels.or}</div>`}
     <form data-on-submit="submit">
       <fieldset ${gui.busy && "disabled"}>
         <label>
@@ -139,6 +137,8 @@ function authentication(app) {
       </button>
     `
     }
+    ${!registering && app.ui.html`<div class="auth-divider">${labels.or}</div>
+      <div class="auth-providers" data-auth-providers></div>`}
   `;
 }
 

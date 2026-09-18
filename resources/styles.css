@@ -138,7 +138,7 @@
     display: grid;
     gap: .75rem;
 
-    &:empty, &:empty + .auth-divider {
+    &:empty {
       display: none;
     }
 
@@ -154,6 +154,10 @@
     gap: .75rem;
     margin-block: 1.25rem;
     color: #586779;
+
+    &:has(+ .auth-providers:empty) {
+      display: none;
+    }
 
     &::before, &::after {
       content: "";
