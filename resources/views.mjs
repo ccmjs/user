@@ -13,11 +13,15 @@ export function main(app) {
 export function trigger(app) {
   const state = app.getState();
   return app.ui.html`
+    <div class="account-header">
     <button type="button" class="account-button ${app.isLoggedIn() ? "signed-in" : ""}"
             data-on-click="open" aria-haspopup="dialog">
       ${avatar(app)}
       <span>${escape(state ? state.user : app.labels.login)}</span>
     </button>
+    ${state && app.ui.html`<button type="button" class="logout-button" data-on-click="logout"
+        aria-label="${escape(app.labels.logout)}" title="${escape(app.labels.logout)}">${icon(app, "logout")}</button>`}
+    </div>
   `;
 }
 
@@ -66,6 +70,7 @@ function profile(app) {
       <dt>${escape(labels.provider)}</dt><dd>${escape(state.provider)}</dd>
     </dl>
     <button type="button" class="primary" data-on-click="logout" autofocus>
+      ${icon(app, "logout")}
       ${escape(labels.logout)}
     </button>
     ${

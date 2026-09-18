@@ -51,7 +51,25 @@
     }
   }
 
+  .account-header {
+    display: inline-flex;
+    align-items: center;
+    max-inline-size: 100%;
+    gap: .25rem;
+  }
+
+  .logout-button {
+    flex: none;
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    padding: .5rem;
+    background: transparent;
+    color: inherit;
+    &:hover { background: #eef3fc; }
+  }
+
   .account-button {
+    min-inline-size: 0;
     min-block-size: 2.5rem;
     padding-block: .375rem;
     max-inline-size: 100%;
