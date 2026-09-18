@@ -3,7 +3,7 @@ export function main(app) {
   return app.ui.html`
     <div data-user-shell>
       <div data-user-trigger></div>
-      <dialog aria-labelledby="${escape(app.index)}-title" data-on-cancel="cancel">
+      <dialog aria-labelledby="${escape(app.index)}-title" data-on-cancel="cancel" data-on-click="closeOnBackdrop">
       </dialog>
     </div>
   `;
