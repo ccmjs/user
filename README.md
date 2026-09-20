@@ -289,7 +289,8 @@ With `profilePicture: true` (default), the profile view offers PNG, JPEG, GIF, W
 and AVIF uploads for local CCM accounts. External accounts display their provider image
 without upload or removal controls; the component does not load a separate CCM avatar
 for these accounts. The configured CCM server needs its upload service enabled and
-the `profilePicture` API. The server stores a permanent account-to-file association;
+the general `account` API. The User component stores `picture` (file key) and
+`defaultPicture` (boolean) in the private `data` area of the account;
 the picture remains private and is restored after signing in again. The User component
 uses its configured `url` for these requests.
 
@@ -299,7 +300,7 @@ and are revoked when replaced or logged out. If loading fails, the standard icon
 Set `profilePicture: false` when using a server without this feature. Labels are
 configurable through `config.labels`. Click the profile avatar to choose a replacement, or use Remove picture. The server
 replaces profile image bytes under the same key. Remove picture sends `config.icons.user`
-as the replacement image, using multipart `profilePicture=reset`. Inline SVG is stored
+as an ordinary replacement upload with the existing `key`. Inline SVG is stored
 as a standalone SVG with the component's current text color. Image URLs must allow
 fetching their contents (same origin or CORS); requests to them contain no CCM token.
 Remove picture replaces the existing bytes with
@@ -307,3 +308,8 @@ the configured standard avatar and keeps the key and permissions, so other refer
 usable. The standard avatar remains visible after signing in again; the Remove button is
 hidden until another custom image is uploaded. Existing blob URLs elsewhere need reloading
 to display changed bytes. Files transferred to someone else cannot be reset by their former owner.
+
+The server treats these account properties as application data. It has no profile-picture
+operation or special default-image metadata. Other account properties are preserved when
+the component updates its image settings. File replacement and saving account data are
+separate requests: if the latter fails, the image may already have changed under its stable key.

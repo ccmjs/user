@@ -14,7 +14,7 @@ export const component = {
     /** Allow private profile pictures for local CCM accounts using the server upload service. */
     profilePicture: true,
 
-    /** Absolute server API URL for registration, login and account deletion. */
+    /** Absolute server API URL for authentication, private account data and file operations. */
     url: "http://localhost:8080",
 
     /** User area on the server; each realm has its own saved login session. */
@@ -377,14 +377,7 @@ export const component = {
         try {
           const file = await defaultPicture();
           if (version !== requestVersion || savedToken !== this.getToken()) return;
-          const body = new FormData();
-          body.set("file", file, "default-picture");
-          body.set("token", savedToken);
-          body.set("profilePicture", "reset");
-          const response = await fetch(new URL("/upload", this.url), { method: "POST", body });
-          if (!response.ok) throw Object.assign(new Error(), { status: response.status });
-          await response.json();
-          if (version !== requestVersion || savedToken !== this.getToken()) return;
+          if (!await savePicture(file, savedToken, version, true)) return;
           pictureSession = null;
           await restorePicture(true);
           if (version === requestVersion) this.gui.message = "";
@@ -416,19 +409,7 @@ export const component = {
         this.gui.message = this.labels.uploadingPicture;
         render();
         try {
-          const body = new FormData();
-          body.set("file", file);
-          body.set("token", savedToken);
-          const previousKey = await (await pictureRequest({ profilePicture: true }, savedToken)).json();
-          if (version !== requestVersion || savedToken !== this.getToken()) return;
-          if (previousKey) body.set("key", previousKey);
-          else body.set("_", JSON.stringify({ access: { get: "owner", set: "owner", del: "owner" } }));
-          const response = await fetch(new URL("/upload", this.url), { method: "POST", body });
-          if (!response.ok) throw Object.assign(new Error(), { status: response.status });
-          const metadata = await response.json();
-          if (version !== requestVersion || savedToken !== this.getToken()) return;
-          await (await pictureRequest({ profilePicture: metadata.key }, savedToken)).json();
-          if (version !== requestVersion || savedToken !== this.getToken()) return;
+          if (!await savePicture(file, savedToken, version)) return;
           pictureSession = null;
           await restorePicture(true);
           if (version === requestVersion) this.gui.message = "";
@@ -676,6 +657,43 @@ export const component = {
       return response;
     };
 
+    /**
+     * Uses ordinary file replacement and private account data; the server does not interpret picture fields.
+     * @param {Blob} file - Selected image or configured default icon.
+     * @param {string} savedToken - Session that started the operation.
+     * @param {number} version - Request version used to discard cancelled operations.
+     * @param {boolean} [isDefault=false] - Whether this is a reset rather than a custom upload.
+     * @returns {Promise<boolean>} False when the initiating session or request is no longer current.
+     */
+    const savePicture = async (file, savedToken, version, isDefault = false) => {
+      const current = () => version === requestVersion && savedToken === this.getToken();
+      if (!current()) return false;
+      const account = await (await pictureRequest({ account: true }, savedToken)).json();
+      if (!current()) return false;
+      let key = account.picture;
+      if (key) {
+        const metadata = await (await pictureRequest({ store: "__files", get: key }, savedToken)).json();
+        if (!current()) return false;
+        const identity = this.getState();
+        if (metadata && metadata._?.owner !== `${identity.realm}:${identity.key}`)
+          throw new Error(this.labels.pictureFailed);
+        // Missing files can be recreated by a new upload, but resetting never allocates a new file.
+        if (!metadata) key = null;
+      }
+      if (isDefault && !key) return true;
+      const body = new FormData();
+      body.set("file", file, "profile-picture");
+      body.set("token", savedToken);
+      if (key) body.set("key", key);
+      else body.set("_", JSON.stringify({ access: { get: "owner", set: "owner", del: "owner" } }));
+      const response = await fetch(new URL("/upload", this.url), { method: "POST", body });
+      if (!response.ok) throw Object.assign(new Error(), { status: response.status });
+      const metadata = await response.json();
+      if (!current()) return false;
+      await (await pictureRequest({ account: { picture: metadata.key, defaultPicture: isDefault } }, savedToken)).json();
+      return current();
+    };
+
     /** Restores local CCM avatars; external accounts use their provider picture without a server lookup. */
     const restorePicture = async (reportError = false) => {
       const savedToken = this.getToken();
@@ -688,12 +706,13 @@ export const component = {
       pictureSession = savedToken;
       const version = pictureVersion;
       try {
-        const key = await (await pictureRequest({ profilePicture: true }, savedToken)).json();
+        const account = await (await pictureRequest({ account: true }, savedToken)).json();
+        const key = account.picture;
         if (!key || version !== pictureVersion || savedToken !== this.getToken()) return;
-        // A reset keeps the file key; its metadata distinguishes the default from a removable custom image.
+        // Private account data distinguishes the configured default from a removable custom image.
         const metadata = await (await pictureRequest({ store: "__files", get: key }, savedToken)).json();
         if (!metadata || version !== pictureVersion || savedToken !== this.getToken()) return;
-        this.gui.hasPicture = metadata.defaultPicture !== true;
+        this.gui.hasPicture = account.defaultPicture !== true;
         const blob = await (await pictureRequest({ download: key }, savedToken)).blob();
         if (version !== pictureVersion || savedToken !== this.getToken()) return;
         this.gui.picture = URL.createObjectURL(blob);

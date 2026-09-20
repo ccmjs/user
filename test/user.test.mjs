@@ -502,6 +502,7 @@ for (const inline of [true, false]) test(`profile reset uploads the configured $
   const { app } = create(undefined, { icons: { ...component.config.icons, user: source } });
   await app.login({ user: "local", password: "pw" });
   let uploaded, iconRequest;
+  let account = { picture: "avatar", defaultPicture: false, language: "de" };
   t.mock.method(globalThis, "fetch", async (url, options) => {
     if (String(url) === source) {
       iconRequest = options;
@@ -509,19 +510,21 @@ for (const inline of [true, false]) test(`profile reset uploads the configured $
     }
     if (String(url).endsWith("/upload")) {
       uploaded = options.body;
-      return Response.json("avatar");
+      return Response.json({ key: "avatar" });
     }
     const request = JSON.parse(options.body);
-    if (request.profilePicture === true) return Response.json("avatar");
-    if (request.get === "avatar") return Response.json({ key: "avatar", defaultPicture: true });
+    if (request.account === true) return Response.json(account);
+    if (request.account) { account = { ...account, ...request.account }; return Response.json(account); }
+    if (request.get === "avatar") return Response.json({ key: "avatar", _: { owner: "ccm:account" } });
     if (request.download === "avatar") return new Response(uploaded.get("file"));
     assert.fail("Unexpected request");
   });
   await app.events.removePicture();
   assert.equal(app.gui.message, "");
   assert.equal(app.gui.hasPicture, false);
-  assert.deepEqual([...uploaded.keys()].sort(), ["file", "profilePicture", "token"]);
-  assert.equal(uploaded.get("profilePicture"), "reset");
+  assert.deepEqual([...uploaded.keys()].sort(), ["file", "key", "token"]);
+  assert.equal(uploaded.get("key"), "avatar");
+  assert.deepEqual(account, { picture: "avatar", defaultPicture: true, language: "de" });
   assert.equal(uploaded.get("token"), "jwt");
   if (inline) {
     const image = await uploaded.get("file").text();
@@ -553,4 +556,24 @@ test("a failed default-image fetch preserves the picture and cancellation preven
   await pending;
   assert.equal(calls, 2);
   assert.equal(app.isLoggedIn(), false);
+});
+
+
+test("resetting an account without a file uploads nothing; transferred files are not replaced", async t => {
+  const { app } = create();
+  await app.login({ user: "local", password: "pw" });
+  let assigned = false;
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(!String(url).endsWith("/upload"));
+    const request = JSON.parse(options.body);
+    if (request.account === true) return Response.json(assigned ? { picture: "transferred" } : {});
+    if (request.get) return Response.json({ key: "transferred", _: { owner: "ccm:other" } });
+    assert.fail("Unexpected write");
+  });
+  await app.events.removePicture();
+  assert.equal(app.gui.message, "");
+  assigned = true;
+  await app.events.removePicture();
+  assert.equal(app.gui.message, app.labels.pictureFailed);
+  await app.logout();
 });
