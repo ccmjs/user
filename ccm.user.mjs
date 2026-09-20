@@ -51,7 +51,7 @@ export const component = {
       login: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
         focusable="false"><path d="M14 4h6v16h-6 M3 12h12 M9 6l6 6-6 6"/></svg>`,
-      /** Fallback avatar when no profile picture is available. */
+      /** Fallback avatar and replacement image when resetting a local profile picture. */
       user: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
         focusable="false"><path d="M20 21v-2a7 7 0 0 0-14 0v2 M17 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0"/></svg>`,
@@ -65,7 +65,7 @@ export const component = {
     labels: {
       /** Label for choosing a private profile picture. */
       uploadPicture: "Change profile picture",
-      /** Removes the privately uploaded picture; a provider picture may remain as fallback. */
+      /** Replaces the uploaded picture with the configured user icon. */
       removePicture: "Remove picture",
       /** Feedback while the profile image is being changed or removed. */
       savingPicture: "Saving profile picture…",
@@ -365,7 +365,7 @@ export const component = {
           this.element?.querySelector('[name="profilePicture"]')?.click();
       },
 
-      /** Replaces the uploaded picture with the server's default image while preserving existing references. */
+      /** Replaces the uploaded picture with icons.user while preserving its key and permissions. */
       removePicture: async () => {
         if (!this.profilePicture || this.getState()?.provider !== "ccm" || !this.isLoggedIn() || this.gui.busy) return;
         const savedToken = this.getToken();
@@ -375,7 +375,15 @@ export const component = {
         this.gui.message = this.labels.savingPicture;
         render();
         try {
-          await (await pictureRequest({ profilePicture: null }, savedToken)).json();
+          const file = await defaultPicture();
+          if (version !== requestVersion || savedToken !== this.getToken()) return;
+          const body = new FormData();
+          body.set("file", file, "default-picture");
+          body.set("token", savedToken);
+          body.set("profilePicture", "reset");
+          const response = await fetch(new URL("/upload", this.url), { method: "POST", body });
+          if (!response.ok) throw Object.assign(new Error(), { status: response.status });
+          await response.json();
           if (version !== requestVersion || savedToken !== this.getToken()) return;
           pictureSession = null;
           await restorePicture(true);
@@ -636,6 +644,25 @@ export const component = {
       if (this.gui.picture) URL.revokeObjectURL(this.gui.picture);
       this.gui.picture = "";
       this.gui.hasPicture = false;
+    };
+
+    /**
+     * Turns the configured user icon into file contents for a profile reset.
+     * Inline SVG inherits its namespace and current text color from a standalone wrapper.
+     * Image URLs must permit fetching their bytes (same origin or CORS).
+     * @returns {Promise<Blob>} Default image; no CCM credentials are sent to an icon URL.
+     */
+    const defaultPicture = async () => {
+      const source = this.icons.user.trim();
+      if (/^<svg[\s>]/i.test(source)) {
+        const color = this.element ? getComputedStyle(this.element).color : "black";
+        return new Blob([
+          `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" color="${color}">${source}</svg>`,
+        ], { type: "image/svg+xml" });
+      }
+      const response = await fetch(source, { credentials: "omit", referrerPolicy: "no-referrer" });
+      if (!response.ok) throw new Error(this.labels.pictureFailed);
+      return response.blob();
     };
 
     /** Sends JSON credentials in the body, never in an image URL. */

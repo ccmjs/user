@@ -298,8 +298,12 @@ URL in the header and profile. Blob URLs stay in `gui`, never in saved user meta
 and are revoked when replaced or logged out. If loading fails, the standard icon remains.
 Set `profilePicture: false` when using a server without this feature. Labels are
 configurable through `config.labels`. Click the profile avatar to choose a replacement, or use Remove picture. The server
-replaces profile image bytes under the same key. Remove picture replaces those bytes with
-the server's standard avatar and keeps the key and permissions, so other references remain
+replaces profile image bytes under the same key. Remove picture sends `config.icons.user`
+as the replacement image, using multipart `profilePicture=reset`. Inline SVG is stored
+as a standalone SVG with the component's current text color. Image URLs must allow
+fetching their contents (same origin or CORS); requests to them contain no CCM token.
+Remove picture replaces the existing bytes with
+the configured standard avatar and keeps the key and permissions, so other references remain
 usable. The standard avatar remains visible after signing in again; the Remove button is
 hidden until another custom image is uploaded. Existing blob URLs elsewhere need reloading
 to display changed bytes. Files transferred to someone else cannot be reset by their former owner.

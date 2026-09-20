@@ -496,3 +496,61 @@ test("profile picture editing is local-only; external sessions never load or cha
   local.profilePicture = false;
   assert.doesNotMatch(String(views.dialog(local)), /data-on-click="choosePicture"|type="file"/);
 });
+
+for (const inline of [true, false]) test(`profile reset uploads the configured ${inline ? "SVG" : "image URL"} without changing its key`, async t => {
+  const source = inline ? '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="red"/></svg>' : 'https://icons.example/default.png';
+  const { app } = create(undefined, { icons: { ...component.config.icons, user: source } });
+  await app.login({ user: "local", password: "pw" });
+  let uploaded, iconRequest;
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    if (String(url) === source) {
+      iconRequest = options;
+      return new Response("configured image bytes", { headers: { "Content-Type": "image/png" } });
+    }
+    if (String(url).endsWith("/upload")) {
+      uploaded = options.body;
+      return Response.json("avatar");
+    }
+    const request = JSON.parse(options.body);
+    if (request.profilePicture === true) return Response.json("avatar");
+    if (request.get === "avatar") return Response.json({ key: "avatar", defaultPicture: true });
+    if (request.download === "avatar") return new Response(uploaded.get("file"));
+    assert.fail("Unexpected request");
+  });
+  await app.events.removePicture();
+  assert.equal(app.gui.message, "");
+  assert.equal(app.gui.hasPicture, false);
+  assert.deepEqual([...uploaded.keys()].sort(), ["file", "profilePicture", "token"]);
+  assert.equal(uploaded.get("profilePicture"), "reset");
+  assert.equal(uploaded.get("token"), "jwt");
+  if (inline) {
+    const image = await uploaded.get("file").text();
+    assert.ok(image.includes(source));
+    assert.match(image, /xmlns="http:\/\/www.w3.org\/2000\/svg"/);
+    assert.equal(uploaded.get("file").type, "image/svg+xml");
+  } else {
+    assert.equal(await uploaded.get("file").text(), "configured image bytes");
+    assert.equal(iconRequest.credentials, "omit");
+    assert.equal(iconRequest.body, undefined);
+    assert.equal(iconRequest.headers, undefined);
+  }
+  await app.logout();
+});
+
+test("a failed default-image fetch preserves the picture and cancellation prevents a late reset", async t => {
+  const { app } = create(undefined, { icons: { ...component.config.icons, user: "https://icons.example/default.png" } });
+  await app.login({ user: "local", password: "pw" });
+  app.gui.hasPicture = true;
+  const { promise, resolve } = Promise.withResolvers();
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => ++calls === 1 ? new Response(null, { status: 404 }) : promise);
+  await app.events.removePicture();
+  assert.equal(app.gui.message, app.labels.pictureFailed);
+  assert.equal(app.gui.hasPicture, true);
+  const pending = app.events.removePicture();
+  await app.logout();
+  resolve(new Response("image", { headers: { "Content-Type": "image/png" } }));
+  await pending;
+  assert.equal(calls, 2);
+  assert.equal(app.isLoggedIn(), false);
+});
