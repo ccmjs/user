@@ -282,3 +282,24 @@ Google-specific configuration belongs to the Google instance. Configure its serv
 and realm for the app's data access. Local username/password sessions remain owned
 by the User component. The Google component has no special provider-only mode and
 can also be used directly as an app's `config.user`.
+
+## Private profile picture upload
+
+With `profilePicture: true` (default), the profile view offers PNG, JPEG, GIF, WebP
+and AVIF uploads for local CCM accounts. External accounts display their provider image
+without upload or removal controls; the component does not load a separate CCM avatar
+for these accounts. The configured CCM server needs its upload service enabled and
+the `profilePicture` API. The server stores a permanent account-to-file association;
+the picture remains private and is restored after signing in again. The User component
+uses its configured `url` for these requests.
+
+The component downloads bytes using a POST body with the JWT and displays a local blob
+URL in the header and profile. Blob URLs stay in `gui`, never in saved user metadata,
+and are revoked when replaced or logged out. If loading fails, the standard icon remains.
+Set `profilePicture: false` when using a server without this feature. Labels are
+configurable through `config.labels`. Click the profile avatar to choose a replacement, or use Remove picture. The server
+replaces profile image bytes under the same key. Remove picture replaces those bytes with
+the server's standard avatar and keeps the key and permissions, so other references remain
+usable. The standard avatar remains visible after signing in again; the Remove button is
+hidden until another custom image is uploaded. Existing blob URLs elsewhere need reloading
+to display changed bytes. Files transferred to someone else cannot be reset by their former owner.

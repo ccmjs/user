@@ -45,7 +45,7 @@ export function dialog(app) {
         <header class="dialog-header">
           <h1 id="${app.index}-title">${title}</h1>
           <button type="button" class="close-button" data-on-click="cancel"
-                  aria-label="${labels.close}" ${deleting && gui.busy && "disabled"}>
+                  aria-label="${labels.close}" ${app.isLoggedIn() && gui.busy && "disabled"}>
             ${icon(app, "close")}
           </button>
         </header>
@@ -60,15 +60,28 @@ function profile(app) {
   const { labels } = app;
   const state = app.getState();
   return app.ui.html`
-    <div class="profile-heading">
-      ${avatar(app)}
-      <span>${state.user}</span>
+    <div class="profile-overview">
+      ${app.profilePicture && state.provider === "ccm" ? app.ui.html`
+        <div class="profile-picture">
+          <button type="button" class="edit-picture" data-on-click="choosePicture"
+                  aria-label="${labels.uploadPicture}" title="${labels.uploadPicture}" ${app.gui.busy && "disabled"}>
+            ${avatar(app)}
+            <span class="picture-pencil" aria-hidden="true">✎</span>
+          </button>
+          <input name="profilePicture" type="file" hidden
+                 accept="image/png,image/jpeg,image/gif,image/webp,image/avif" data-on-change="uploadPicture">
+          ${app.gui.hasPicture && app.ui.html`
+            <button type="button" class="remove-picture" data-on-click="removePicture" ${app.gui.busy && "disabled"}>
+              ${labels.removePicture}
+            </button>`}
+        </div>` : avatar(app)}
+      <dl class="profile-data">
+        <dt>${labels.user}</dt><dd>${state.user}</dd>
+        <dt>${labels.userId}</dt><dd class="user-id">${state.key}</dd>
+        <dt>${labels.provider}</dt><dd>${state.provider}</dd>
+      </dl>
     </div>
-    <dl class="profile-data">
-      <dt>${labels.user}</dt><dd>${state.user}</dd>
-      <dt>${labels.userId}</dt><dd class="user-id">${state.key}</dd>
-      <dt>${labels.provider}</dt><dd>${state.provider}</dd>
-    </dl>
+    ${message(app)}
     <button type="button" class="primary" data-on-click="logout" autofocus>
       ${icon(app, "logout")}
       ${labels.logout}
@@ -146,17 +159,18 @@ function authentication(app) {
 function message(app) {
   return app.ui.html`
     <p class="message" role="${app.gui.message ? "alert" : "status"}" aria-live="polite"
-    >${app.gui.busy ? app.labels.pending : app.gui.message}</p>
+    >${app.gui.busy ? (app.gui.mode === "profile" ? app.labels.savingPicture : app.labels.pending) : app.gui.message}</p>
   `;
 }
 
 /** Creates the profile picture with a standard icon underneath as a fallback if loading fails. */
 function avatar(app) {
   const state = app.getState();
+  const picture = (state?.provider === "ccm" && app.gui.picture) || state?.picture;
   return app.ui.html`
     <span class="avatar" aria-hidden="true">
       ${icon(app, state ? "user" : "login")}
-      ${state?.picture && app.ui.html`<img src="${state.picture}" alt="" referrerpolicy="no-referrer"
+      ${picture && app.ui.html`<img src="${picture}" alt="" referrerpolicy="no-referrer"
         data-on-error="hideProfilePicture" />`}
     </span>
   `;

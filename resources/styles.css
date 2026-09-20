@@ -134,6 +134,57 @@
     }
   }
 
+  .profile-picture {
+    display: grid;
+    justify-items: center;
+    gap: .4rem;
+
+    input[hidden] { display: none; }
+  }
+
+  .edit-picture {
+    position: relative;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+
+    > .avatar { inline-size: 4rem; block-size: 4rem; }
+
+    &:focus-visible { outline: 3px solid #245cb4; outline-offset: 4px; }
+    &:hover .picture-pencil { background: #17458b; }
+    &:disabled { cursor: wait; opacity: .6; }
+  }
+
+  .picture-pencil {
+    position: absolute;
+    inset-inline-end: -.1rem;
+    inset-block-end: -.1rem;
+    display: grid;
+    place-items: center;
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+    border: 2px solid white;
+    border-radius: 50%;
+    background: #245cb4;
+    color: white;
+    font-size: 1rem;
+  }
+
+  .remove-picture {
+    padding: .25rem;
+    border: 0;
+    background: transparent;
+    color: #586779;
+    font: inherit;
+    font-size: .8rem;
+    cursor: pointer;
+
+    &:hover { text-decoration: underline; }
+    &:disabled { cursor: wait; opacity: .6; }
+  }
+
   .auth-providers {
     display: grid;
     gap: .75rem;
@@ -254,29 +305,40 @@
     }
   }
 
-  .profile-heading {
-    display: flex;
-    align-items: center;
-    gap: .75rem;
-    font-weight: 650;
-    overflow-wrap: anywhere;
+  .profile-overview {
+    display: grid;
+    grid-template-columns: 5rem minmax(0, 1fr);
+    align-items: start;
+    gap: 1rem;
+    margin-block-end: 1.25rem;
 
-    .avatar {
-      inline-size: 2.5rem;
-      block-size: 2.5rem;
+    > .avatar {
+      justify-self: center;
+      inline-size: 4rem;
+      block-size: 4rem;
     }
 
     .icon {
-      inline-size: 2.5rem;
-      block-size: 2.5rem;
-      padding: .35rem;
+      inline-size: 4rem;
+      block-size: 4rem;
+      padding: .55rem;
       border-radius: 50%;
       background: #eef3fc;
     }
   }
 
   .profile-data {
-    margin-block: 1.5rem;
+    min-inline-size: 0;
+    margin: 0;
+
+    dd:last-child { margin-block-end: 0; }
+  }
+
+  @container dialog (width < 22rem) {
+    .profile-overview {
+      grid-template-columns: 4rem minmax(0, 1fr);
+      gap: .75rem;
+    }
   }
 
   dt {

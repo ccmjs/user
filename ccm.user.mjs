@@ -11,6 +11,9 @@ export const component = {
   config: {
     // TODO: lang
 
+    /** Allow private profile pictures for local CCM accounts using the server upload service. */
+    profilePicture: true,
+
     /** Absolute server API URL for registration, login and account deletion. */
     url: "http://localhost:8080",
 
@@ -60,6 +63,20 @@ export const component = {
 
     /** Configurable interface text and error messages. */
     labels: {
+      /** Label for choosing a private profile picture. */
+      uploadPicture: "Change profile picture",
+      /** Removes the privately uploaded picture; a provider picture may remain as fallback. */
+      removePicture: "Remove picture",
+      /** Feedback while the profile image is being changed or removed. */
+      savingPicture: "Saving profile picture…",
+      /** Feedback while uploading and saving an image. */
+      uploadingPicture: "Uploading profile picture…",
+      /** Error for unsupported image formats. */
+      invalidPicture: "Choose a PNG, JPEG, GIF, WebP or AVIF image.",
+      /** Error when uploading or saving a profile picture fails. */
+      pictureFailed: "The profile picture could not be saved.",
+      /** Error when the server rejects the file size. */
+      pictureTooLarge: "The selected image is too large.",
       /** Login dialog heading. */
       title: "Sign in",
       /** Profile dialog heading. */
@@ -149,6 +166,12 @@ export const component = {
       /** Active view: login, register, profile or delete. */
       mode: "login",
 
+      /** Browser-local URL for the private uploaded avatar; never persisted as session data. */
+      picture: "",
+
+      /** Whether this account has an uploaded profile picture available for removal. */
+      hasPicture: false,
+
       /** Whether authentication (including an external provider) or account deletion is in progress. */
       busy: false,
 
@@ -164,6 +187,12 @@ export const component = {
 
     /** The current authentication token, or `null` when logged out. */
     let token = null;
+
+    /** Session for which a profile image has already been requested. */
+    let pictureSession = null;
+
+    /** Invalidates old downloads when an upload, logout or another session supersedes them. */
+    let pictureVersion = 0;
 
     /** Incrementing invalidates older responses; it does not abort the HTTP request. */
     let requestVersion = 0;
@@ -208,7 +237,7 @@ export const component = {
       }
 
       // If no parent user instance has the same server URL and realm, restore this instance's session from sessionStorage.
-      selectedProvider = this.providers.find(provider => provider.isLoggedIn()) ?? null;
+      selectedProvider = this.providers.find((provider) => provider.isLoggedIn()) ?? null;
       if (selectedProvider) {
         sessionStorageAccess("removeItem");
         return;
@@ -269,6 +298,7 @@ export const component = {
 
     /** Discards the session and cancels a pending interactive login. */
     this.logout = async () => {
+      resetPicture();
       requestVersion++;
       this.gui.busy = false;
       const changed = this.isLoggedIn();
@@ -313,22 +343,103 @@ export const component = {
     };
 
     /** Returns whether this instance holds a server-issued token. */
-    this.isLoggedIn = () => selectedProvider ? selectedProvider.isLoggedIn() : token !== null;
+    this.isLoggedIn = () => (selectedProvider ? selectedProvider.isLoggedIn() : token !== null);
 
     /**
      * Returns a copy of the shared user metadata, or `null` when logged out.
      * @returns {UserIdentity|null}
      */
-    this.getState = () => selectedProvider ? selectedProvider.getState() : state && { ...state };
+    this.getState = () => (selectedProvider ? selectedProvider.getState() : state && { ...state });
 
     /** Returns the JWT, or null when logged out. */
-    this.getToken = () => selectedProvider ? selectedProvider.getToken() : token;
+    this.getToken = () => (selectedProvider ? selectedProvider.getToken() : token);
 
     /** Returns the shared authentication instance for coordinating concurrent re-login attempts. */
     this.getSessionOwner = () => sessionOwner ?? this;
 
     /** DOM handlers bound by ccm-ui through data-on-* attributes. */
     this.events = {
+      /** Opens the file picker from the keyboard-accessible avatar button. */
+      choosePicture: () => {
+        if (this.profilePicture && this.getState()?.provider === "ccm" && !this.gui.busy)
+          this.element?.querySelector('[name="profilePicture"]')?.click();
+      },
+
+      /** Replaces the uploaded picture with the server's default image while preserving existing references. */
+      removePicture: async () => {
+        if (!this.profilePicture || this.getState()?.provider !== "ccm" || !this.isLoggedIn() || this.gui.busy) return;
+        const savedToken = this.getToken();
+        const version = ++requestVersion;
+        ++pictureVersion;
+        this.gui.busy = true;
+        this.gui.message = this.labels.savingPicture;
+        render();
+        try {
+          await (await pictureRequest({ profilePicture: null }, savedToken)).json();
+          if (version !== requestVersion || savedToken !== this.getToken()) return;
+          pictureSession = null;
+          await restorePicture(true);
+          if (version === requestVersion) this.gui.message = "";
+        } catch (error) {
+          if (version === requestVersion)
+            this.gui.message = error.status === 401 ? this.labels.sessionExpired : this.labels.pictureFailed;
+        } finally {
+          if (version === requestVersion) {
+            this.gui.busy = false;
+            render();
+          }
+        }
+      },
+
+      /** Uploads a selected image privately, assigns it to this account, then refreshes both avatars. */
+      uploadPicture: async (event) => {
+        const file = event.currentTarget.files?.[0];
+        if (!file || !this.profilePicture || this.getState()?.provider !== "ccm" || !this.isLoggedIn() || this.gui.busy)
+          return;
+        if (!["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"].includes(file.type)) {
+          this.gui.message = this.labels.invalidPicture;
+          render();
+          return;
+        }
+        const savedToken = this.getToken();
+        const version = ++requestVersion;
+        ++pictureVersion;
+        this.gui.busy = true;
+        this.gui.message = this.labels.uploadingPicture;
+        render();
+        try {
+          const body = new FormData();
+          body.set("file", file);
+          body.set("token", savedToken);
+          const previousKey = await (await pictureRequest({ profilePicture: true }, savedToken)).json();
+          if (version !== requestVersion || savedToken !== this.getToken()) return;
+          if (previousKey) body.set("key", previousKey);
+          else body.set("_", JSON.stringify({ access: { get: "owner", set: "owner", del: "owner" } }));
+          const response = await fetch(new URL("/upload", this.url), { method: "POST", body });
+          if (!response.ok) throw Object.assign(new Error(), { status: response.status });
+          const metadata = await response.json();
+          if (version !== requestVersion || savedToken !== this.getToken()) return;
+          await (await pictureRequest({ profilePicture: metadata.key }, savedToken)).json();
+          if (version !== requestVersion || savedToken !== this.getToken()) return;
+          pictureSession = null;
+          await restorePicture(true);
+          if (version === requestVersion) this.gui.message = "";
+        } catch (error) {
+          if (version === requestVersion)
+            this.gui.message =
+              error.status === 401
+                ? this.labels.sessionExpired
+                : error.status === 413
+                  ? this.labels.pictureTooLarge
+                  : this.labels.pictureFailed;
+        } finally {
+          if (version === requestVersion) {
+            this.gui.busy = false;
+            render();
+          }
+        }
+      },
+
       /** Reveals the standard icon beneath a profile image that could not be loaded. */
       hideProfilePicture: (event) => event.currentTarget.remove(),
 
@@ -435,7 +546,7 @@ export const component = {
        */
       cancel: (event) => {
         event?.preventDefault();
-        if (this.gui.busy && this.gui.mode === "delete") return;
+        if (this.gui.busy && ["delete", "profile"].includes(this.gui.mode)) return;
         this.gui.dialog = false;
         requestVersion++;
         this.gui.busy = false;
@@ -518,6 +629,55 @@ export const component = {
       typeof value.provider === "string" &&
       value.provider !== "";
 
+    /** Releases private image bytes and invalidates any pending download. */
+    const resetPicture = () => {
+      ++pictureVersion;
+      pictureSession = null;
+      if (this.gui.picture) URL.revokeObjectURL(this.gui.picture);
+      this.gui.picture = "";
+      this.gui.hasPicture = false;
+    };
+
+    /** Sends JSON credentials in the body, never in an image URL. */
+    const pictureRequest = async (params, savedToken) => {
+      const response = await fetch(this.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...params, token: savedToken }),
+      });
+      if (!response.ok) throw Object.assign(new Error(), { status: response.status });
+      return response;
+    };
+
+    /** Restores local CCM avatars; external accounts use their provider picture without a server lookup. */
+    const restorePicture = async (reportError = false) => {
+      const savedToken = this.getToken();
+      if (!this.profilePicture || !savedToken || this.getState()?.provider !== "ccm") {
+        if (pictureSession || this.gui.picture) resetPicture();
+        return;
+      }
+      if (pictureSession === savedToken) return;
+      resetPicture();
+      pictureSession = savedToken;
+      const version = pictureVersion;
+      try {
+        const key = await (await pictureRequest({ profilePicture: true }, savedToken)).json();
+        if (!key || version !== pictureVersion || savedToken !== this.getToken()) return;
+        // A reset keeps the file key; its metadata distinguishes the default from a removable custom image.
+        const metadata = await (await pictureRequest({ store: "__files", get: key }, savedToken)).json();
+        if (!metadata || version !== pictureVersion || savedToken !== this.getToken()) return;
+        this.gui.hasPicture = metadata.defaultPicture !== true;
+        const blob = await (await pictureRequest({ download: key }, savedToken)).blob();
+        if (version !== pictureVersion || savedToken !== this.getToken()) return;
+        this.gui.picture = URL.createObjectURL(blob);
+        render();
+      } catch (error) {
+        if (reportError) throw error;
+        // Keep the standard icon if the local file or session is unavailable.
+        if (version === pictureVersion) render();
+      }
+    };
+
     /** Updates the views while preserving the existing dialog element. */
     const render = () => {
       // Only the highest matching user instance displays the UI; child user instances keep their containers empty.
@@ -529,6 +689,7 @@ export const component = {
       /** Existing dialog whose contents are updated without replacing the dialog itself. */
       const dialog = this.element?.querySelector("dialog");
       if (!dialog) return;
+      void restorePicture();
 
       // Update the login/profile trigger and the form or profile shown inside the dialog.
       this.ui.render(this.views.trigger(this), this.element.querySelector("[data-user-trigger]"), this);
@@ -559,7 +720,9 @@ export const component = {
         }
       }
       if (!rendered.length) return this.emit("render").catch(console.error);
-      return Promise.all(rendered).then(() => this.emit("render")).catch(console.error);
+      return Promise.all(rendered)
+        .then(() => this.emit("render"))
+        .catch(console.error);
     };
 
     /** Uses provider-owned sessions without copying their tokens or issuing another login request. */
@@ -739,9 +902,11 @@ export const component = {
       }
       // Provider work may exist even when no caller is waiting for the login dialog.
       activeProvider = null;
-      const cancelled = this.providers.map(provider => provider.cancel());
+      const cancelled = this.providers.map((provider) => provider.cancel());
       if (!cancelled.length) return this.emit("cancel").catch(console.error);
-      return Promise.all(cancelled).then(() => this.emit("cancel")).catch(console.error);
+      return Promise.all(cancelled)
+        .then(() => this.emit("cancel"))
+        .catch(console.error);
     };
   },
 };

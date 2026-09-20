@@ -461,3 +461,38 @@ test("UI events reach listeners after extensions with the same event payload", a
   await app.emit("render");
   assert.deepEqual(calls, ["extension", "render"]);
 });
+
+test("profile picture editing is local-only; external sessions never load or change CCM avatars", async t => {
+  const views = await import("../resources/views.mjs");
+  let fetches = 0, picks = 0;
+  t.mock.method(globalThis, "fetch", async () => { fetches++; throw new Error("Unexpected avatar request"); });
+  const { app } = create(async () => ({ key: "external", token: "jwt", user: "Person", realm: "ccm",
+    provider: "google", picture: "https://example.org/google.png" }));
+  await app.login({ code: "proof" }, "google");
+  Object.assign(app.ui, templates);
+  Object.assign(app.views, views);
+  const dialog = { open: false, querySelector: () => null };
+  app.element = { querySelector: selector => selector === "dialog" ? dialog : { click() { picks++; } } };
+  app.gui.hasPicture = true;
+  app.gui.picture = "blob:old-local-avatar";
+  const profile = String(views.dialog(app));
+  assert.match(profile, /google\.png/);
+  assert.doesNotMatch(profile, /blob:old-local-avatar|data-on-click="choosePicture"|data-on-click="removePicture"|type="file"/);
+  await app.start();
+  app.events.choosePicture();
+  await app.events.uploadPicture({ currentTarget: { files: [new File(["image"], "image.png", { type: "image/png" })] } });
+  await app.events.removePicture();
+  assert.equal(fetches, 0);
+  assert.equal(picks, 0);
+  assert.equal(app.gui.picture, "");
+  assert.equal(app.gui.hasPicture, false);
+
+  const { app: local } = create();
+  await local.login({ user: "local", password: "pw" });
+  Object.assign(local.ui, templates);
+  local.gui.hasPicture = true;
+  assert.match(String(views.dialog(local)), /data-on-click="choosePicture"/);
+  assert.match(String(views.dialog(local)), /data-on-click="removePicture"/);
+  local.profilePicture = false;
+  assert.doesNotMatch(String(views.dialog(local)), /data-on-click="choosePicture"|type="file"/);
+});
