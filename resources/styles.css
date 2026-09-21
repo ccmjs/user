@@ -56,6 +56,10 @@
     align-items: center;
     max-inline-size: 100%;
     gap: .25rem;
+    /* Keep account controls readable independently of the embedding app's background. */
+    background: white;
+    color: #202b3b;
+    border-radius: .55rem;
   }
 
   .logout-button {
