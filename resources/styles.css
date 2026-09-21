@@ -77,8 +77,8 @@
     min-block-size: 2.5rem;
     padding-block: .375rem;
     max-inline-size: 100%;
-    background: #2058b5;
-    color: white;
+    background: transparent;
+    color: inherit;
 
     > span:not(.avatar) {
       overflow: hidden;
@@ -86,16 +86,7 @@
       white-space: nowrap;
     }
 
-    &.signed-in {
-      background: transparent;
-      color: inherit;
-    }
-
     &:hover {
-      background: #16458f;
-    }
-
-    &.signed-in:hover {
       background: #eef3fc;
     }
   }
