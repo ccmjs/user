@@ -23,6 +23,9 @@ export const component = {
     /** Preserve the CCM token and user metadata across reloads in this tab; logout remains local. */
     session: true,
 
+    /** Require login on the first start(); embed the host in the document before awaiting start(). */
+    autoLogin: false,
+
     /** UI utilities for HTML templates, rendering and DOM event binding. */
     ui: ["ccm.load", "././libs/ccm-ui/ccm-ui.mjs"],
 
@@ -212,6 +215,9 @@ export const component = {
     /** Session source retained after logout so automatic re-login uses the same provider. */
     let selectedProvider = null;
 
+    /** Shared first-start login; retained after success so later starts do not force another login. */
+    let initialLogin = null;
+
     /** Normalizes the server URL before any instance enters ready(). */
     this.init = async () => {
       this.url = new URL(this.url).href;
@@ -263,8 +269,16 @@ export const component = {
       }
     };
 
-    /** Renders the current authentication state without resetting the session. */
-    this.start = async () => render();
+    /** Renders the UI and, with autoLogin, waits for the first successful login before resolving. */
+    this.start = async () => {
+      render();
+      if (!this.autoLogin) return;
+      // Concurrent starts share the attempt. Cancellation rejects start and allows a later retry.
+      return (initialLogin ??= this.login().catch((error) => {
+        initialLogin = null;
+        throw error;
+      }));
+    };
 
     /**
      * Logs in with credentials, or waits for an interactive login.
@@ -377,7 +391,7 @@ export const component = {
         try {
           const file = await defaultPicture();
           if (version !== requestVersion || savedToken !== this.getToken()) return;
-          if (!await savePicture(file, savedToken, version, true)) return;
+          if (!(await savePicture(file, savedToken, version, true))) return;
           pictureSession = null;
           await restorePicture(true);
           if (version === requestVersion) this.gui.message = "";
@@ -409,7 +423,7 @@ export const component = {
         this.gui.message = this.labels.uploadingPicture;
         render();
         try {
-          if (!await savePicture(file, savedToken, version)) return;
+          if (!(await savePicture(file, savedToken, version))) return;
           pictureSession = null;
           await restorePicture(true);
           if (version === requestVersion) this.gui.message = "";
@@ -637,9 +651,10 @@ export const component = {
       const source = this.icons.user.trim();
       if (/^<svg[\s>]/i.test(source)) {
         const color = this.element ? getComputedStyle(this.element).color : "black";
-        return new Blob([
-          `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" color="${color}">${source}</svg>`,
-        ], { type: "image/svg+xml" });
+        return new Blob(
+          [`<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" color="${color}">${source}</svg>`],
+          { type: "image/svg+xml" },
+        );
       }
       const response = await fetch(source, { credentials: "omit", referrerPolicy: "no-referrer" });
       if (!response.ok) throw new Error(this.labels.pictureFailed);
@@ -690,7 +705,9 @@ export const component = {
       if (!response.ok) throw Object.assign(new Error(), { status: response.status });
       const metadata = await response.json();
       if (!current()) return false;
-      await (await pictureRequest({ account: { picture: metadata.key, defaultPicture: isDefault } }, savedToken)).json();
+      await (
+        await pictureRequest({ account: { picture: metadata.key, defaultPicture: isDefault } }, savedToken)
+      ).json();
       return current();
     };
 

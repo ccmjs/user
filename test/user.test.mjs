@@ -577,3 +577,42 @@ test("resetting an account without a file uploads nothing; transferred files are
   assert.equal(app.gui.message, app.labels.pictureFailed);
   await app.logout();
 });
+
+
+test("autoLogin waits for authentication, shares concurrent starts and runs only once", async () => {
+  const { app } = create(undefined, { autoLogin: true });
+  let completed = false;
+  const first = app.start().then(() => { completed = true; });
+  const second = app.start();
+  await Promise.resolve();
+  assert.equal(completed, false);
+  assert.equal(app.gui.dialog, true);
+  await app.login({ user: "alice", password: "secret" });
+  await Promise.all([first, second]);
+  assert.equal(completed, true);
+  await app.logout();
+  await app.start();
+  assert.equal(app.isLoggedIn(), false);
+  assert.equal(app.gui.dialog, false);
+});
+
+test("autoLogin reuses an existing session without a new request", async () => {
+  let calls = 0;
+  const { app } = create(async () => { calls++; return { key: "account", token: "jwt" }; }, { autoLogin: true });
+  await app.login({ user: "alice", password: "secret" });
+  await app.start();
+  assert.equal(calls, 1);
+  assert.equal(app.gui.dialog, false);
+});
+
+test("a cancelled autoLogin rejects start and can be retried", async () => {
+  const { app } = create(undefined, { autoLogin: true });
+  const first = app.start();
+  const rejected = assert.rejects(first, { name: "AbortError" });
+  await app.events.cancel();
+  await rejected;
+  const retry = app.start();
+  await app.login({ user: "alice", password: "secret" });
+  await retry;
+  assert.equal(app.isLoggedIn(), true);
+});

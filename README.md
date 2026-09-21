@@ -313,3 +313,14 @@ The server treats these account properties as application data. It has no profil
 operation or special default-image metadata. Other account properties are preserved when
 the component updates its image settings. File replacement and saving account data are
 separate requests: if the latter fails, the image may already have changed under its stable key.
+
+### Login before the embedding app starts
+
+Set `autoLogin: true` to require a successful login on the first `start()`.
+Attach `user.host` to the document before awaiting `user.start()` so its native
+modal dialog can open. The quiz already does this before showing its questions.
+This works independently of result storage; the default is `false`.
+An existing session completes immediately, concurrent starts share the same
+login, and cancellation rejects `start()` so the caller does not continue.
+A later start can retry cancellation. After success, later starts only render,
+even after logout: autoLogin is an initial gate, not continuous access control.
