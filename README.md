@@ -324,3 +324,10 @@ An existing session completes immediately, concurrent starts share the same
 login, and cancellation rejects `start()` so the caller does not continue.
 A later start can retry cancellation. After success, later starts only render,
 even after logout: autoLogin is an initial gate, not continuous access control.
+
+## Session access
+
+Use `getState()` for a copy of user metadata and `getToken()` for the CCM token.
+Both reflect shared parent sessions and selected providers where applicable.
+These authentication components keep session data private; transient UI state is
+available through `gui`.
