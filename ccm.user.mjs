@@ -7,7 +7,7 @@
  */
 export const component = {
   name: "user",
-  ccm: "././libs/framework/ccm.js",
+  ccm: "././libs/framework/ccm-28.0.0.min.js",
   config: {
     // TODO: lang
 
@@ -27,7 +27,7 @@ export const component = {
     autoLogin: false,
 
     /** UI utilities for HTML templates, rendering and DOM event binding. */
-    ui: ["ccm.load", "././libs/ccm-ui/ccm-ui.mjs"],
+    ui: ["ccm.load", "././libs/ccm-ui/ccm-ui-1.0.0.min.mjs"],
 
     /** Templates for the account header and authentication dialog. */
     views: ["ccm.load", "././resources/views.mjs"],

@@ -9,7 +9,7 @@ Serve this directory, for example with
 `python3 -m http.server 8000 --bind 127.0.0.1`.
 Start ccm-server on port 8080 and open `http://localhost:8000/`.
 
-The demo and component use the bundled `libs/framework/ccm.js`. Views and CSS resolve
+The demo and component use the bundled `libs/framework/ccm-28.0.0.min.js`. Views and CSS resolve
 relative to the component module URL.
 The page loads `demo` from `resources/configs.mjs`, enabling registration and Google
 authentication. Change `url` there to use another server.
@@ -135,7 +135,7 @@ CSS animations and password-manager extensions still need testing in a real brow
 ## Rendering
 
 Views in `resources/views.mjs` use `app.ui.html` from the bundled
-`libs/ccm-ui/ccm-ui.mjs`. The component renders them with
+`libs/ccm-ui/ccm-ui-1.0.0.min.mjs`. The component renders them with
 `ui.render(view, element, instance)`. Declarative `data-on-*` attributes
 connect the templates to `instance.events`, following the Quiz component.
 Dynamic text and quoted attribute values are escaped before interpolation.
