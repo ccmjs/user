@@ -249,18 +249,15 @@ and `extensions` and do not need to call these coordination methods themselves.
 External authentication can be supplied by independent CCM components:
 
 ```javascript
-providers: [["ccm.instance", "../google_login/ccm.google_login.mjs", {
-  url: "https://ccmjs.github.io/google_login/auth.html",
-  server: "http://localhost:8080",
-  realm: "ccm",
-  displayName: "name",
-  picture: true,
-}]],
+providers: [["ccm.instance", "././libs/google_login/ccm.google_login-1.0.1.min.mjs"]],
 ```
 
-The demo uses this configuration. Serve the common parent directory when testing the
-sibling repositories locally. Publish `google_login` before using its component URL
-on GitHub Pages. The provider callback is hosted at `https://ccmjs.github.io/google_login/auth.html`.
+The demo uses the bundled Google Login v1.0.1 with its default configuration,
+including the CCM server at `http://localhost:8080`. The main module, source map
+and license are included under `libs/google_login/`. Its views, styles and libraries
+are loaded from the pinned v1.0.1 CDN release; the Google popup remains hosted at
+`https://ccmjs.github.io/google_login/auth.html`. The provider entry is commented
+out in the User component's default configuration and can be enabled there.
 
 A provider renders in its own `host` and owns its CCM session. It implements
 `start()`, `login()`, `logout()`, `isLoggedIn()`, `getState()`, `getToken()`,

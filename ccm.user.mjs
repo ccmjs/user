@@ -42,7 +42,9 @@ export const component = {
     extensions: [],
 
     /** Independent authentication components mounted in the login dialog. */
-    providers: [],
+    providers: [
+      // ["ccm.instance", "././libs/google_login/ccm.google_login-1.0.1.min.mjs"],
+    ],
 
     /** Configurable icons as inline SVG markup or image URLs (SVG, PNG, JPG). */
     icons: {
