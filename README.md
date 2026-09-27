@@ -3,25 +3,42 @@
 A user component for local `ccm` authentication and independent authentication provider components.
 It provides registration, login and logout without a build step.
 
-## Local demo
-
-Serve this directory, for example with
-`python3 -m http.server 8000 --bind 127.0.0.1`.
-Start ccm-server on port 8080 and open `http://localhost:8000/`.
-
-The demo and component use the bundled `libs/framework/ccm-28.0.0.min.js`. Views and CSS resolve
-relative to the component module URL.
-The page loads `demo` from `resources/configs.mjs`, enabling registration and Google
-authentication. Change `url` there to use another server.
-
 ## Usage
 
-```javascript
-const user = await ccm.start("./ccm.user.mjs", {
-  url: "http://localhost:8080",
-  extensions: [({app, type}) => console.log(type, app.getState())],
-}, document.querySelector("main"));
+With ccmjs loaded, start the component using its default configuration:
 
+```javascript
+const user = await ccm.start("./ccm.user.mjs", {}, document.querySelector("main"));
+```
+
+The default setup requires a CCM server at `http://localhost:8080`.
+
+## 📦 Usage with CDN (versioned)
+
+```html
+<script
+    src="https://cdn.jsdelivr.net/gh/ccmjs/user@v1.0.0/libs/framework/ccm-28.0.0.min.js"
+    integrity="sha384-HDMeDDgKlR2OFJ3ECMwmA6wknqpfpeCiSZYlUhQaFg9FKrvHJp8MMSwrxibvWJ2G"
+    crossorigin="anonymous"
+></script>
+<script type="module">
+  const user = await ccm.start(
+      "https://cdn.jsdelivr.net/gh/ccmjs/user@v1.0.0/ccm.user-1.0.0.min.mjs#sha384-tD2slwXgRmq8z8oSCVwNtlszc+aC221TN+NWklA//UXyLfcU3Y8XAA7+ptSvxR2m",
+      {},
+      document.body
+  );
+</script>
+```
+
+Place this example inside the document body. It uses the default configuration,
+including the CCM server at `http://localhost:8080`.
+Update the component URL and its integrity hash together when changing versions.
+
+## Authenticated datastores
+
+Pass the user instance to a datastore to send its authentication token with requests:
+
+```javascript
 // Resolves after successful interactive authentication; cancellation rejects
 await user.login();
 
