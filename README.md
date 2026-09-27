@@ -120,18 +120,6 @@ verified by the server; `isLoggedIn()` only checks the in-memory session.
 Logout does not revoke a previously issued JWT. Use HTTPS in deployment.
 Provider-specific setup belongs to each provider component. Dataset permissions are enforced by the server.
 
-## Tests
-
-```bash
-node --test
-```
-
-These tests cover authentication, concurrent requests, session restoration, instance
-hierarchies, view output, and delegation to provider-owned sessions using
-controlled transports and browser substitutes. The sibling ccm-server repository
-contains real-server integration tests. Native dialog focus, Enter submission,
-CSS animations and password-manager extensions still need testing in a real browser.
-
 ## Rendering
 
 Views in `resources/views.mjs` use `app.ui.html` from the bundled
