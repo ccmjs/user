@@ -4,13 +4,12 @@
  * @author André Kless <andre.kless@web.de>
  * @copyright 2026 André Kless
  * @license MIT
+ * @version 1.0.0
  */
 export const component = {
   name: "user",
   ccm: "././libs/framework/ccm-28.0.0.min.js",
   config: {
-    // TODO: lang
-
     /** Allow private profile pictures for local CCM accounts using the server upload service. */
     profilePicture: true,
 
