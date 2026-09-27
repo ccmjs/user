@@ -1,184 +1,111 @@
-/** Creates a stable shell so the native modal stays mounted during updates. */
-export function main(app) {
-  return app.ui.html`
+export function main(t){return t.ui.html`
     <div data-user-shell>
       <div data-user-trigger></div>
-      <dialog aria-labelledby="${app.index}-title" data-on-cancel="cancel" data-on-click="closeOnBackdrop">
+      <dialog aria-labelledby="${t.index}-title" data-on-cancel="cancel" data-on-click="closeOnBackdrop">
       </dialog>
     </div>
-  `;
-}
-
-/** Creates the compact header button. */
-export function trigger(app) {
-  const state = app.getState();
-  return app.ui.html`
+  `}export function trigger(t){const a=t.getState();return t.ui.html`
     <div class="account-header">
-    <button type="button" class="account-button ${app.isLoggedIn() ? "signed-in" : ""}"
+    <button type="button" class="account-button ${t.isLoggedIn()?"signed-in":""}"
             data-on-click="open" aria-haspopup="dialog">
-      ${avatar(app)}
-      <span>${state ? state.user : app.labels.login}</span>
+      ${e(t)}
+      <span>${a?a.user:t.labels.login}</span>
     </button>
-    ${state && app.ui.html`<button type="button" class="logout-button" data-on-click="logout"
-        aria-label="${app.labels.logout}" title="${app.labels.logout}">${icon(app, "logout")}</button>`}
+    ${a&&t.ui.html`<button type="button" class="logout-button" data-on-click="logout"
+        aria-label="${t.labels.logout}" title="${t.labels.logout}">${i(t,"logout")}</button>`}
     </div>
-  `;
-}
-
-/** Creates the active dialog view without exposing the JWT. */
-export function dialog(app) {
-  const { gui, labels } = app;
-  const deleting = gui.mode === "delete";
-  const registering = gui.mode === "register";
-  let title;
-  let content;
-  if (app.isLoggedIn()) {
-    title = deleting ? labels.deleteTitle : labels.profile;
-    content = deleting ? deletion(app) : profile(app);
-  } else {
-    title = registering ? labels.registerTitle : labels.title;
-    content = authentication(app);
-  }
-  return app.ui.html`
-    <div class="dialog-container">
-      <section class="card">
-        <header class="dialog-header">
-          <h1 id="${app.index}-title">${title}</h1>
-          <button type="button" class="close-button" data-on-click="cancel"
-                  aria-label="${labels.close}" ${app.isLoggedIn() && gui.busy && "disabled"}>
-            ${icon(app, "close")}
-          </button>
-        </header>
-        ${content}
-      </section>
+  `}export function dialog(a){const{gui:o,labels:s}=a,l="delete"===o.mode,u="register"===o.mode;let r,n;return a.isLoggedIn()?(r=l?s.deleteTitle:s.profile,n=l?function(e){const{gui:i,labels:a}=e;return e.ui.html`
+    <p class="description">${a.deleteDescription}</p>
+    ${t(e)}
+    <div class="actions">
+      <button type="button" class="secondary" data-on-click="keepAccount"
+              ${i.busy&&"disabled"} autofocus>${a.keepAccount}</button>
+      <button type="button" class="danger" data-on-click="deleteAccount"
+              ${i.busy&&"disabled"}>${a.confirmDelete}</button>
     </div>
-  `;
-}
-
-/** Creates the user profile with logout and, for local accounts, account deletion. */
-function profile(app) {
-  const { labels } = app;
-  const state = app.getState();
-  return app.ui.html`
+  `}(a):function(a){const{labels:o}=a,s=a.getState();return a.ui.html`
     <div class="profile-overview">
-      ${app.profilePicture && state.provider === "ccm" ? app.ui.html`
+      ${a.profilePicture&&"ccm"===s.provider?a.ui.html`
         <div class="profile-picture">
           <button type="button" class="edit-picture" data-on-click="choosePicture"
-                  aria-label="${labels.uploadPicture}" title="${labels.uploadPicture}" ${app.gui.busy && "disabled"}>
-            ${avatar(app)}
+                  aria-label="${o.uploadPicture}" title="${o.uploadPicture}" ${a.gui.busy&&"disabled"}>
+            ${e(a)}
             <span class="picture-pencil" aria-hidden="true">✎</span>
           </button>
           <input name="profilePicture" type="file" hidden
                  accept="image/png,image/jpeg,image/gif,image/webp,image/avif" data-on-change="uploadPicture">
-          ${app.gui.hasPicture && app.ui.html`
-            <button type="button" class="remove-picture" data-on-click="removePicture" ${app.gui.busy && "disabled"}>
-              ${labels.removePicture}
+          ${a.gui.hasPicture&&a.ui.html`
+            <button type="button" class="remove-picture" data-on-click="removePicture" ${a.gui.busy&&"disabled"}>
+              ${o.removePicture}
             </button>`}
-        </div>` : avatar(app)}
+        </div>`:e(a)}
       <dl class="profile-data">
-        <dt>${labels.user}</dt><dd>${state.user}</dd>
-        <dt>${labels.userId}</dt><dd class="user-id">${state.key}</dd>
-        <dt>${labels.provider}</dt><dd>${state.provider}</dd>
+        <dt>${o.user}</dt><dd>${s.user}</dd>
+        <dt>${o.userId}</dt><dd class="user-id">${s.key}</dd>
+        <dt>${o.provider}</dt><dd>${s.provider}</dd>
       </dl>
     </div>
-    ${message(app)}
+    ${t(a)}
     <button type="button" class="primary" data-on-click="logout" autofocus>
-      ${icon(app, "logout")}
-      ${labels.logout}
+      ${i(a,"logout")}
+      ${o.logout}
     </button>
-    ${
-      state.provider === "ccm" &&
-      app.ui.html`<footer class="account-actions">
+    ${"ccm"===s.provider&&a.ui.html`<footer class="account-actions">
       <button type="button" class="delete-link" data-on-click="requestDelete">
-        ${labels.deleteAccount}
+        ${o.deleteAccount}
       </button>
-    </footer>`
-    }
-  `;
-}
-
-/** Creates the account deletion confirmation with buttons to keep or delete the account. */
-function deletion(app) {
-  const { gui, labels } = app;
-  return app.ui.html`
-    <p class="description">${labels.deleteDescription}</p>
-    ${message(app)}
-    <div class="actions">
-      <button type="button" class="secondary" data-on-click="keepAccount"
-              ${gui.busy && "disabled"} autofocus>${labels.keepAccount}</button>
-      <button type="button" class="danger" data-on-click="deleteAccount"
-              ${gui.busy && "disabled"}>${labels.confirmDelete}</button>
-    </div>
-  `;
-}
-
-/** Creates the local form with an extension slot for external providers in login mode. */
-function authentication(app) {
-  const { gui, labels } = app;
-  const registering = gui.mode === "register";
-  return app.ui.html`
+    </footer>`}
+  `}(a)):(r=u?s.registerTitle:s.title,n=function(e){const{gui:i,labels:a}=e,o="register"===i.mode;return e.ui.html`
     <form data-on-submit="submit">
-      <fieldset ${gui.busy && "disabled"}>
+      <fieldset ${i.busy&&"disabled"}>
         <label>
-          ${labels.user}
+          ${a.user}
           <input name="user" type="text" autocomplete="username"
-                 value="${gui.username}" required autofocus>
+                 value="${i.username}" required autofocus>
         </label>
         <label>
-          ${labels.password}
+          ${a.password}
           <input name="password" type="password"
-                 autocomplete="${registering ? "new-password" : "current-password"}" required>
+                 autocomplete="${o?"new-password":"current-password"}" required>
         </label>
-        ${
-          registering &&
-          app.ui.html`
+        ${o&&e.ui.html`
           <label>
-            ${labels.confirmation}
+            ${a.confirmation}
             <input name="confirmation" type="password" autocomplete="new-password" required>
           </label>
-        `
-        }
-        ${message(app)}
-        <button type="submit" class="primary">${registering ? labels.register : labels.login}</button>
+        `}
+        ${t(e)}
+        <button type="submit" class="primary">${o?a.register:a.login}</button>
       </fieldset>
     </form>
-    ${
-      app.registration &&
-      app.ui.html`
-      <button type="button" class="text-button" data-on-click="switchMode" ${gui.busy && "disabled"}>
-        ${registering ? labels.showLogin : labels.showRegister}
+    ${e.registration&&e.ui.html`
+      <button type="button" class="text-button" data-on-click="switchMode" ${i.busy&&"disabled"}>
+        ${o?a.showLogin:a.showRegister}
       </button>
-    `
-    }
-    ${!registering && app.ui.html`<div class="auth-divider">${labels.or}</div>
+    `}
+    ${!o&&e.ui.html`<div class="auth-divider">${a.or}</div>
       <div class="auth-providers" data-auth-providers></div>`}
-  `;
-}
-
-/** Creates the status message, showing pending feedback while a request is in progress. */
-function message(app) {
-  return app.ui.html`
-    <p class="message" role="${app.gui.message ? "alert" : "status"}" aria-live="polite"
-    >${app.gui.busy ? (app.gui.mode === "profile" ? app.labels.savingPicture : app.labels.pending) : app.gui.message}</p>
-  `;
-}
-
-/** Creates the profile picture with a standard icon underneath as a fallback if loading fails. */
-function avatar(app) {
-  const state = app.getState();
-  const picture = (state?.provider === "ccm" && app.gui.picture) || state?.picture;
-  return app.ui.html`
+  `}(a)),a.ui.html`
+    <div class="dialog-container">
+      <section class="card">
+        <header class="dialog-header">
+          <h1 id="${a.index}-title">${r}</h1>
+          <button type="button" class="close-button" data-on-click="cancel"
+                  aria-label="${s.close}" ${a.isLoggedIn()&&o.busy&&"disabled"}>
+            ${i(a,"close")}
+          </button>
+        </header>
+        ${n}
+      </section>
+    </div>
+  `}function t(t){return t.ui.html`
+    <p class="message" role="${t.gui.message?"alert":"status"}" aria-live="polite"
+    >${t.gui.busy?"profile"===t.gui.mode?t.labels.savingPicture:t.labels.pending:t.gui.message}</p>
+  `}function e(t){const e=t.getState(),a="ccm"===e?.provider&&t.gui.picture||e?.picture;return t.ui.html`
     <span class="avatar" aria-hidden="true">
-      ${icon(app, state ? "user" : "login")}
-      ${picture && app.ui.html`<img src="${picture}" alt="" referrerpolicy="no-referrer"
+      ${i(t,e?"user":"login")}
+      ${a&&t.ui.html`<img src="${a}" alt="" referrerpolicy="no-referrer"
         data-on-error="hideProfilePicture" />`}
     </span>
-  `;
-}
-
-/** Renders trusted inline SVG configuration or an image URL. */
-function icon(app, name) {
-  const source = app.icons[name].trim();
-  const content = /^<svg[\s>]/i.test(source) ? app.ui.raw(source) : app.ui.html`<img src="${source}" alt="" />`;
-  return app.ui.html`<span class="icon" aria-hidden="true">${content}</span>`;
-}
+  `}function i(t,e){const i=t.icons[e].trim(),a=/^<svg[\s>]/i.test(i)?t.ui.raw(i):t.ui.html`<img src="${i}" alt="" />`;return t.ui.html`<span class="icon" aria-hidden="true">${a}</span>`}
+//# sourceMappingURL=https://cdn.jsdelivr.net/gh/ccmjs/user@v1.0.0/resources/views.mjs.map
