@@ -2,6 +2,7 @@
 
 A user component for local `ccm` authentication and independent authentication provider components.
 It provides registration, login and logout without a build step.
+See the [changelog](CHANGELOG.md) for the version history.
 
 ## Usage
 
@@ -17,13 +18,13 @@ The default setup requires a CCM server at `http://localhost:8080`.
 
 ```html
 <script
-    src="https://cdn.jsdelivr.net/gh/ccmjs/user@v1.0.0/libs/framework/ccm-28.0.0.min.js"
-    integrity="sha384-HDMeDDgKlR2OFJ3ECMwmA6wknqpfpeCiSZYlUhQaFg9FKrvHJp8MMSwrxibvWJ2G"
+    src="https://cdn.jsdelivr.net/gh/ccmjs/user@v1.1.0/libs/framework/ccm-29.1.0.min.js"
+    integrity="sha384-+Ra3mH+gwP++yhMqYTOSnzIpDlhdMQINbkbEI8POBy4y7CYFng/c+KxtSJXiLsJA"
     crossorigin="anonymous"
 ></script>
 <script type="module">
   const user = await ccm.start(
-      "https://cdn.jsdelivr.net/gh/ccmjs/user@v1.0.0/ccm.user-1.0.0.min.mjs#sha384-tD2slwXgRmq8z8oSCVwNtlszc+aC221TN+NWklA//UXyLfcU3Y8XAA7+ptSvxR2m",
+      "https://cdn.jsdelivr.net/gh/ccmjs/user@v1.1.0/ccm.user-1.1.0.min.mjs#sha384-BGodjSGAidjWF79l/h2zdNGgRJhfhiCC4UFO+r6WZbjowyV4jnHwaouKo4z3TpGu",
       {},
       document.body
   );
@@ -94,18 +95,28 @@ An extension error stops dispatch and rejects the operation awaiting `emit`; com
 state changes are not rolled back. If a logout extension fails during deletion,
 the subsequent `deleteAccount` event is not emitted.
 
-`icons.login`, `icons.user` and `icons.close` accept complete inline SVG markup (starting with `<svg`) or an image URL
-(SVG, PNG, JPG). Formats can be mixed:
+### Language and icons
+
+[`resources/content.mjs`](resources/content.mjs) exports the English and German
+labels (`labels.en` and `labels.de`) and the shared `icons`. English is the default.
+To switch the User dialogs to German in the repository demo, pass this option to
+`ccm.start`:
 
 ```js
-icons: {
-  login: "./resources/login.svg",
-      user
-:
-  "./resources/avatar.png",
-      close
-:
-  '<svg viewBox="0 0 24 24" stroke="currentColor"><path d="M6 6l12 12M6 18L18 6"/></svg>',
+labels: ["ccm.load", "././resources/content.mjs#labels.de"]
+```
+
+For a CDN embed, use the versioned User release URL for `resources/content.mjs#labels.de`.
+External providers such as Google Login have their own language configuration.
+
+You can also override individual labels and icons. Omitted entries use the English
+labels and default icons. The icon keys are `login`, `logout`, `user`, `close` and
+`editPicture`. Each accepts inline SVG markup or an image URL.
+
+```js
+{
+  labels: { login: "Sign in to your account" },
+  icons: { user: "./resources/avatar.png" }
 }
 ```
 
@@ -165,7 +176,7 @@ Initially only a compact sign-in button with an icon is shown. Clicking it opens
 the native modal dialog. After authentication it closes and the header displays
 the profile picture or user icon with the username. Clicking this opens the profile with the username,
 user ID, provider, sign-out action and a discreet delete-account action.
-Profile editing and image uploads are not implemented.
+Local CCM accounts can change their avatar when `profilePicture` is enabled.
 
 Authentication providers can supply an optional `picture` URL in `getState()`. The trigger and profile
 show this image instead of the standard user icon, falling back to the icon if
@@ -251,18 +262,20 @@ and `extensions` and do not need to call these coordination methods themselves.
 
 ## Authentication provider components
 
-External authentication can be supplied by independent CCM components:
+The default `providers` array is empty. When an app adds a provider, the provider
+uses its own declared framework unless the app explicitly overrides `ccm`.
+
+The demo enables Google Login v1.1.0. Both components declare ccmjs 29.1.0,
+so the provider reuses the framework already loaded by the demo.
 
 ```javascript
-providers: [["ccm.instance", "././libs/google_login/ccm.google_login-1.0.1.min.mjs"]],
+providers: [["ccm.instance", "././libs/google_login/ccm.google_login-1.1.0.min.mjs"]],
 ```
 
-The demo uses the bundled Google Login v1.0.1 with its default configuration,
-including the CCM server at `http://localhost:8080`. The main module, source map
-and license are included under `libs/google_login/`. Its views, styles and libraries
-are loaded from the pinned v1.0.1 CDN release; the Google popup remains hosted at
-`https://ccmjs.github.io/google_login/auth.html`. The provider entry is commented
-out in the User component's default configuration and can be enabled there.
+The demo sets User's `url` and Google Login's `server` to `https://kless.inf.h-brs.de/api/`. The Google Login module, source map
+and license are included under `libs/google_login/`. Its views, styles, labels, icons and libraries
+are resolved against the pinned v1.1.0 CDN release. The Google popup is hosted at
+`https://ccmjs.github.io/google_login/auth.html`.
 
 A provider renders in its own `host` and owns its CCM session. It implements
 `start()`, `login()`, `logout()`, `isLoggedIn()`, `getState()`, `getToken()`,
@@ -294,7 +307,8 @@ for these accounts. The configured CCM server needs its upload service enabled a
 the general `account` API. The User component stores `picture` (file key) and
 `defaultPicture` (boolean) in the private `data` area of the account;
 the picture remains private and is restored after signing in again. The User component
-uses its configured `url` for these requests.
+uses its configured `url` for these requests. For example, with an API base of
+`https://example.org/api/`, the upload endpoint is `https://example.org/api/upload`.
 
 The component downloads bytes using a POST body with the JWT and displays a local blob
 URL in the header and profile. Blob URLs stay in `gui`, never in saved user metadata,

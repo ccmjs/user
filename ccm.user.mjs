@@ -4,159 +4,44 @@
  * @author André Kless <andre.kless@web.de>
  * @copyright 2026 André Kless
  * @license MIT
- * @version 1.0.0
+ * @version 1.1.0
  */
 export const component = {
   name: "user",
-  ccm: "././libs/framework/ccm-28.0.0.min.js",
+  ccm: "././libs/framework/ccm-29.1.0.min.js",
   config: {
-    /** Allow private profile pictures for local CCM accounts using the server upload service. */
-    profilePicture: true,
-
     /** Absolute server API URL for authentication, private account data and file operations. */
     url: "http://localhost:8080",
-
     /** User area on the server; each realm has its own saved login session. */
     realm: "ccm",
-
     /** Preserve the CCM token and user metadata across reloads in this tab; logout remains local. */
     session: true,
 
     /** Require login on the first start(); embed the host in the document before awaiting start(). */
     autoLogin: false,
+    /** Whether local account registration is available; disabled unless explicitly enabled. */
+    // registration: true,
+    /** Independent authentication components mounted in the login dialog. */
+    providers: [
+      // ["ccm.instance", "././libs/google_login/ccm.google_login-1.1.0.min.mjs"],
+    ],
+    /** Allow private profile pictures for local CCM accounts using the server upload service. */
+    profilePicture: true,
 
     /** UI utilities for HTML templates, rendering and DOM event binding. */
     ui: ["ccm.load", "././libs/ccm-ui/ccm-ui-1.0.0.min.mjs"],
-
     /** Templates for the account header and authentication dialog. */
     views: ["ccm.load", "././resources/views.mjs"],
-
     /** Styles for this component instance. */
     css: ["ccm.load", "././resources/styles.css"],
-
-    /** Whether local account registration is available; disabled unless explicitly enabled. */
-    // registration: true,
 
     /** Event handlers receiving { app, type }, awaited sequentially in configuration order. */
     extensions: [],
 
-    /** Independent authentication components mounted in the login dialog. */
-    providers: [
-      // ["ccm.instance", "././libs/google_login/ccm.google_login-1.0.1.min.mjs"],
-    ],
-
-    /** Configurable icons as inline SVG markup or image URLs (SVG, PNG, JPG). */
-    icons: {
-      /** Icon for the header and profile sign-out actions. */
-      logout: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-        focusable="false"><path d="M9 4H4v16h5 M10 12h10 M16 8l4 4-4 4"/></svg>`,
-      /** Icon of the signed-out account button. */
-      login: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-        focusable="false"><path d="M14 4h6v16h-6 M3 12h12 M9 6l6 6-6 6"/></svg>`,
-      /** Fallback avatar and replacement image when resetting a local profile picture. */
-      user: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-        focusable="false"><path d="M20 21v-2a7 7 0 0 0-14 0v2 M17 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0"/></svg>`,
-      /** Icon of the dialog close button. */
-      close: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-        focusable="false"><path d="M6 6l12 12 M6 18L18 6"/></svg>`,
-    },
-
-    /** Configurable interface text and error messages. */
-    labels: {
-      /** Label for choosing a private profile picture. */
-      uploadPicture: "Change profile picture",
-      /** Replaces the uploaded picture with the configured user icon. */
-      removePicture: "Remove picture",
-      /** Feedback while the profile image is being changed or removed. */
-      savingPicture: "Saving profile picture…",
-      /** Feedback while uploading and saving an image. */
-      uploadingPicture: "Uploading profile picture…",
-      /** Error for unsupported image formats. */
-      invalidPicture: "Choose a PNG, JPEG, GIF, WebP or AVIF image.",
-      /** Error when uploading or saving a profile picture fails. */
-      pictureFailed: "The profile picture could not be saved.",
-      /** Error when the server rejects the file size. */
-      pictureTooLarge: "The selected image is too large.",
-      /** Login dialog heading. */
-      title: "Sign in",
-      /** Profile dialog heading. */
-      profile: "Your profile",
-      /** Label for the CCM account key. */
-      userId: "User ID",
-      /** Label for the authentication provider. */
-      provider: "Sign-in provider",
-      /** Accessible name of the dialog close button. */
-      close: "Close dialog",
-      /** Action opening the account deletion confirmation. */
-      deleteAccount: "Delete account",
-      /** Account deletion dialog heading. */
-      deleteTitle: "Delete your account?",
-      /** Explanation of the effects of account deletion. */
-      deleteDescription:
-        "Your account will be marked as deleted. You will be signed out and can no longer sign in. Your account data is retained.",
-      /** Action confirming account deletion. */
-      confirmDelete: "Delete my account",
-      /** Action returning to the profile without deleting the account. */
-      keepAccount: "Keep my account",
-      /** Error when account deletion fails. */
-      deletionFailed: "Account deletion failed. Please try again.",
-      /** Message when the server rejects the current session. */
-      sessionExpired: "Your session is no longer valid. Please sign in again.",
-      /** Registration dialog heading. */
-      registerTitle: "Create an account",
-      /** Username field and profile label. */
-      user: "Username",
-      /** Password field label. */
-      password: "Password",
-      /** Password confirmation field label. */
-      confirmation: "Confirm password",
-      /** Login action and signed-out header text. */
-      login: "Sign in",
-      /** Registration submit action. */
-      register: "Register",
-      /** Action switching from login to registration. */
-      showRegister: "No account yet? Register",
-      /** Action switching from registration to login. */
-      showLogin: "Already have an account? Sign in",
-      /** Sign-out action and accessible name of the header icon button. */
-      logout: "Sign out",
-      /** Status while an operation is in progress. */
-      pending: "Please wait …",
-      /** Error when the registration passwords differ. */
-      mismatch: "The passwords do not match.",
-      /** Error when local credentials are rejected. */
-      invalid: "The username or password is incorrect.",
-      /** Error when the requested username is already registered. */
-      duplicate: "This username is already taken.",
-      /** Fallback message when login fails. */
-      failed: "Sign-in failed. Please try again.",
-      /** Fallback message when registration fails. */
-      registrationFailed: "Registration failed. Please try again.",
-      /** Error when registration is requested but disabled. */
-      registrationDisabled: "Registration is disabled.",
-      /** Message of the AbortError returned when login is cancelled. */
-      loginCancelled: "Login cancelled.",
-      /** Error for a concurrent authentication request. */
-      authenticationBusy: "Authentication is already in progress.",
-      /** Error for incorrectly typed local credentials. */
-      invalidCredentials: "Username and password must be strings.",
-      /** Error for invalid server identity or token data. */
-      invalidAuthenticationResponse: "Invalid authentication response.",
-      /** Error when deleting an account without a local session. */
-      deletionRequiresLogin: "Sign in before deleting your account.",
-      /** Error when another operation prevents account deletion. */
-      requestBusy: "A request is already in progress.",
-      /** Divider text between external providers and the local login form. */
-      or: "or",
-      /** Error when external credentials are not an object. */
-      invalidProviderCredentials: "Provider credentials must be an object.",
-      /** Error when the server does not confirm account deletion. */
-      invalidDeletionResponse: "Invalid account deletion response.",
-    },
+    /** Configurable icons from content.mjs. Each accepts trusted inline SVG markup or an image URL. */
+    icons: ["ccm.load", "././resources/content.mjs#icons"],
+    /** Interface text. Select #labels.de for German or override individual English labels. */
+    labels: ["ccm.load", "././resources/content.mjs#labels.en"],
   },
   Instance: function () {
     /**
@@ -219,9 +104,12 @@ export const component = {
     /** Shared first-start login; retained after success so later starts do not force another login. */
     let initialLogin = null;
 
-    /** Normalizes the server URL before any instance enters ready(). */
+    /** Normalizes the server URL and fills omitted content entries before ready(). */
     this.init = async () => {
-      this.url = new URL(this.url).href;
+      // CCM resolves dependencies before init. A partial object replaces its map, so restore missing defaults.
+      const [labels, icons] = await this.ccm.load(component.config.labels[1], component.config.icons[1]);
+      this.labels = { ...labels, ...this.labels };
+      this.icons = { ...icons, ...this.icons };
     };
 
     /** Joins the highest matching ancestor, or restores cached metadata locally. */
@@ -702,7 +590,10 @@ export const component = {
       body.set("token", savedToken);
       if (key) body.set("key", key);
       else body.set("_", JSON.stringify({ access: { get: "owner", set: "owner", del: "owner" } }));
-      const response = await fetch(new URL("/upload", this.url), { method: "POST", body });
+      // The CCM API may be mounted below the origin, e.g. at /api or /api/.
+      const uploadURL = new URL(this.url);
+      uploadURL.pathname = uploadURL.pathname.replace(/\/?$/, "/upload");
+      const response = await fetch(uploadURL, { method: "POST", body });
       if (!response.ok) throw Object.assign(new Error(), { status: response.status });
       const metadata = await response.json();
       if (!current()) return false;

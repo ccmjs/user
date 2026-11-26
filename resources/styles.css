@@ -313,7 +313,7 @@
       block-size: 4rem;
     }
 
-    .icon {
+    .avatar > .icon {
       inline-size: 4rem;
       block-size: 4rem;
       padding: .55rem;

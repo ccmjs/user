@@ -66,7 +66,7 @@ function profile(app) {
           <button type="button" class="edit-picture" data-on-click="choosePicture"
                   aria-label="${labels.uploadPicture}" title="${labels.uploadPicture}" ${app.gui.busy && "disabled"}>
             ${avatar(app)}
-            <span class="picture-pencil" aria-hidden="true">✎</span>
+            <span class="picture-pencil" aria-hidden="true">${icon(app, "editPicture")}</span>
           </button>
           <input name="profilePicture" type="file" hidden
                  accept="image/png,image/jpeg,image/gif,image/webp,image/avif" data-on-change="uploadPicture">
