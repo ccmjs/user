@@ -2,6 +2,13 @@
 
 Notable changes to the ccmjs User component are documented here, newest first.
 
+## Unreleased
+
+### Changed
+
+- The demo offers CCM account registration and password sign-in only. Apps can
+  still enable Google Login through `providers`.
+
 ## 1.2.0
 
 ### Changed

@@ -267,14 +267,19 @@ and `extensions` and do not need to call these coordination methods themselves.
 The default `providers` array is empty. When an app adds a provider, the provider
 uses its own declared framework unless the app explicitly overrides `ccm`.
 
-The demo enables Google Login v1.2.0. Both components declare ccmjs 29.1.0,
-so the provider reuses the framework already loaded by the demo.
+The demo offers CCM account registration and password sign-in at
+`https://kless.inf.h-brs.de/api/`. To also offer Google sign-in in your own app,
+add the bundled Google Login v1.2.0 provider and point it to the same backend:
 
 ```javascript
-providers: [["ccm.instance", "././libs/google_login/ccm.google_login-1.2.0.min.mjs"]],
+const server = "https://kless.inf.h-brs.de/api/";
+const config = {
+  url: server,
+  providers: [["ccm.instance", "././libs/google_login/ccm.google_login-1.2.0.min.mjs", { server }]]
+};
 ```
 
-The demo sets User's `url` and Google Login's `server` to `https://kless.inf.h-brs.de/api/`.
+Both components declare ccmjs 29.1.0 and share the loaded framework.
 Google Login is bundled under `libs/google_login/`. When updating any dependency in `libs/`,
 include its versioned readable and minified files, source map and license together.
 Google Login's views, styles, labels, icons and libraries
