@@ -8,7 +8,7 @@
  */
 export const component = {
   name: "user",
-  ccm: "././libs/framework/ccm-29.1.0.min.js",
+  ccm: "https://cdn.jsdelivr.net/gh/ccmjs/user@v1.2.0/libs/framework/ccm-29.1.0.min.js",
   config: {
     /** Absolute server API URL for authentication, private account data and file operations. */
     url: "http://localhost:8080",
@@ -23,25 +23,25 @@ export const component = {
     // registration: true,
     /** Independent authentication components mounted in the login dialog. */
     providers: [
-      // ["ccm.instance", "././libs/google_login/ccm.google_login-1.2.0.min.mjs"],
+      // ["ccm.instance", "https://cdn.jsdelivr.net/gh/ccmjs/user@v1.2.0/libs/google_login/ccm.google_login-1.2.0.min.mjs"],
     ],
     /** Allow private profile pictures for local CCM accounts using the server upload service. */
     profilePicture: true,
 
     /** UI utilities for HTML templates, rendering and DOM event binding. */
-    ui: ["ccm.load", "././libs/ccm-ui/ccm-ui-1.0.0.min.mjs"],
+    ui: ["ccm.load", "https://cdn.jsdelivr.net/gh/ccmjs/user@v1.2.0/libs/ccm-ui/ccm-ui-1.0.0.min.mjs"],
     /** Templates for the account header and authentication dialog. */
-    views: ["ccm.load", "././resources/views.mjs"],
+    views: ["ccm.load", "https://cdn.jsdelivr.net/gh/ccmjs/user@v1.2.0/resources/views.mjs"],
     /** Styles for this component instance. */
-    css: ["ccm.load", "././resources/styles.css"],
+    css: ["ccm.load", "https://cdn.jsdelivr.net/gh/ccmjs/user@v1.2.0/resources/styles.css"],
 
     /** Event handlers receiving { app, type }, awaited sequentially in configuration order. */
     extensions: [],
 
     /** Configurable icons from content.mjs. Each accepts trusted inline SVG markup or an image URL. */
-    icons: ["ccm.load", "././resources/content.mjs#icons"],
+    icons: ["ccm.load", "https://cdn.jsdelivr.net/gh/ccmjs/user@v1.2.0/resources/content.mjs#icons"],
     /** Interface text. Select #labels.de for German or override individual English labels. */
-    labels: ["ccm.load", "././resources/content.mjs#labels.en"],
+    labels: ["ccm.load", "https://cdn.jsdelivr.net/gh/ccmjs/user@v1.2.0/resources/content.mjs#labels.en"],
   },
   Instance: function () {
     /**
