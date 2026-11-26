@@ -4,5 +4,5 @@ const server = "https://kless.inf.h-brs.de/api/";
 export const demo = {
   url: server,
   registration: true,
-  providers: [["ccm.instance", "././libs/google_login/ccm.google_login-1.1.0.min.mjs", { server }]],
+  providers: [["ccm.instance", "././libs/google_login/ccm.google_login-1.2.0.min.mjs", { server }]],
 };

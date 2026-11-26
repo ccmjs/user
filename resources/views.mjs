@@ -9,18 +9,18 @@ export function main(app) {
   `;
 }
 
-/** Creates the compact header button. */
+/** Shows the sign-in action or the profile and sign-out actions for the active account. */
 export function trigger(app) {
   const state = app.getState();
   return app.ui.html`
     <div class="account-header">
-    <button type="button" class="account-button ${app.isLoggedIn() ? "signed-in" : ""}"
-            data-on-click="open" aria-haspopup="dialog">
-      ${avatar(app)}
-      <span>${state ? state.user : app.labels.login}</span>
-    </button>
-    ${state && app.ui.html`<button type="button" class="logout-button" data-on-click="logout"
-        aria-label="${app.labels.logout}" title="${app.labels.logout}">${icon(app, "logout")}</button>`}
+      <button type="button" class="account-button ${state ? "signed-in" : ""}"
+              data-on-click="open" aria-haspopup="dialog">
+        ${avatar(app)}
+        <span class="account-name">${state ? state.user : app.labels.login}</span>
+      </button>
+      ${state && app.ui.html`<button type="button" class="logout-button" data-on-click="logout"
+          aria-label="${app.labels.logout}" title="${app.labels.logout}">${icon(app, "logout")}</button>`}
     </div>
   `;
 }
@@ -43,6 +43,7 @@ export function dialog(app) {
     <div class="dialog-container">
       <section class="card">
         <header class="dialog-header">
+          ${icon(app, "login")}
           <h1 id="${app.index}-title">${title}</h1>
           <button type="button" class="close-button" data-on-click="cancel"
                   aria-label="${labels.close}" ${app.isLoggedIn() && gui.busy && "disabled"}>

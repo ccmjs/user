@@ -18,13 +18,13 @@ The default setup requires a CCM server at `http://localhost:8080`.
 
 ```html
 <script
-    src="https://cdn.jsdelivr.net/gh/ccmjs/user@v1.1.0/libs/framework/ccm-29.1.0.min.js"
+    src="https://cdn.jsdelivr.net/gh/ccmjs/user@v1.2.0/libs/framework/ccm-29.1.0.min.js"
     integrity="sha384-+Ra3mH+gwP++yhMqYTOSnzIpDlhdMQINbkbEI8POBy4y7CYFng/c+KxtSJXiLsJA"
     crossorigin="anonymous"
 ></script>
 <script type="module">
   const user = await ccm.start(
-      "https://cdn.jsdelivr.net/gh/ccmjs/user@v1.1.0/ccm.user-1.1.0.min.mjs#sha384-BGodjSGAidjWF79l/h2zdNGgRJhfhiCC4UFO+r6WZbjowyV4jnHwaouKo4z3TpGu",
+      "https://cdn.jsdelivr.net/gh/ccmjs/user@v1.2.0/ccm.user-1.2.0.min.mjs#sha384-N32UlGOG7Y4YaHbgnuRMpia9fzSqdJV+TpuuX2nmUEKZT8nYYAGTg30rMi/wjHpJ",
       {},
       document.body
   );
@@ -120,9 +120,11 @@ labels and default icons. The icon keys are `login`, `logout`, `user`, `close` a
 }
 ```
 
-The component sizes icons through `.icon` and marks them as decorative.
-Inline SVG can inherit the text color through `currentColor`; image files keep
-their own colors. The defaults are inline SVG and need no extra image requests.
+The default sign-in button and dialog headings use the ccmjs tile logo from
+`resources/favicon.svg`. Override `icons.login` to change the logo in both places.
+The remaining default icons are inline
+SVG and inherit the text color through `currentColor`. The component sizes
+button icons through `.icon` and marks them as decorative.
 Inline markup is trusted developer configuration, not sanitized user input.
 
 By default, `session: true` saves the CCM JWT and public user metadata in
@@ -265,18 +267,18 @@ and `extensions` and do not need to call these coordination methods themselves.
 The default `providers` array is empty. When an app adds a provider, the provider
 uses its own declared framework unless the app explicitly overrides `ccm`.
 
-The demo enables Google Login v1.1.0. Both components declare ccmjs 29.1.0,
+The demo enables Google Login v1.2.0. Both components declare ccmjs 29.1.0,
 so the provider reuses the framework already loaded by the demo.
 
 ```javascript
-providers: [["ccm.instance", "././libs/google_login/ccm.google_login-1.1.0.min.mjs"]],
+providers: [["ccm.instance", "././libs/google_login/ccm.google_login-1.2.0.min.mjs"]],
 ```
 
 The demo sets User's `url` and Google Login's `server` to `https://kless.inf.h-brs.de/api/`.
 Google Login is bundled under `libs/google_login/`. When updating any dependency in `libs/`,
 include its versioned readable and minified files, source map and license together.
 Google Login's views, styles, labels, icons and libraries
-are resolved against the pinned v1.1.0 CDN release. The Google popup is hosted at
+are resolved against the pinned v1.2.0 CDN release. The Google popup is hosted at
 `https://ccmjs.github.io/google_login/auth.html`.
 
 A provider renders in its own `host` and owns its CCM session. It implements

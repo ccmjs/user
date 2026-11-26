@@ -1,5 +1,6 @@
 .root {
-  color: #202b3b;
+  --account-control-height: 44px;
+  color: #163544;
   font: 1rem/1.5 system-ui, sans-serif;
 
   &, * {
@@ -33,7 +34,7 @@
   }
 
   :focus-visible {
-    outline: 3px solid #d98a1c;
+    outline: 3px solid #006b9b;
     outline-offset: 3px;
   }
 
@@ -53,42 +54,61 @@
 
   .account-header {
     display: inline-flex;
-    align-items: center;
+    align-items: stretch;
+    min-block-size: var(--account-control-height);
     max-inline-size: 100%;
-    gap: .25rem;
-    /* Keep account controls readable independently of the embedding app's background. */
-    background: white;
-    color: #202b3b;
-    border-radius: .55rem;
-  }
-
-  .logout-button {
-    flex: none;
-    inline-size: 2.5rem;
-    block-size: 2.5rem;
-    padding: .5rem;
-    background: transparent;
+    vertical-align: middle;
+    background: #fff;
     color: inherit;
-    &:hover { background: #eef3fc; }
+    font: .9375rem/1.4 system-ui, sans-serif;
+    outline: 1px solid #a7bdc5;
+    outline-offset: -1px;
+    border-radius: .625rem;
+    box-shadow: 0 2px 0 #173c4814;
+
+    &:hover { outline-color: #397b93; }
+
+    button {
+      color: inherit;
+      background: transparent;
+      border: 0;
+
+      &:hover:enabled { background: #f3faff; }
+      &:active:enabled { background: #e3f3fb; }
+    }
   }
 
   .account-button {
     min-inline-size: 0;
-    min-block-size: 2.5rem;
-    padding-block: .375rem;
-    max-inline-size: 100%;
-    background: transparent;
-    color: inherit;
+    gap: .6rem;
+    padding: .375rem .875rem .375rem .5rem;
+    text-align: start;
+    overflow-wrap: anywhere;
 
-    > span:not(.avatar) {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    .avatar, .avatar > .icon { inline-size: 1.875rem; block-size: 1.875rem; }
+    .avatar > img { border-radius: .4rem; }
 
-    &:hover {
-      background: #eef3fc;
+    &.signed-in {
+      border-start-end-radius: 0;
+      border-end-end-radius: 0;
+      .account-name {
+        max-inline-size: 12rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
+  }
+
+  .account-header .logout-button {
+    flex: none;
+    inline-size: 2.375rem;
+    margin-inline-end: .125rem;
+    padding: .5rem;
+    border-inline-start: 1px solid #d9e5e7;
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+    .icon { block-size: 1.125rem; inline-size: 1.125rem; }
   }
 
   .avatar {
@@ -111,21 +131,23 @@
     }
   }
 
-  /* The native modal uses the top layer; its contents adapt to its own width */
+  /* The native dialog uses the top layer. Size its contents against the dialog itself. */
 
   dialog {
     inline-size: 27rem;
     max-inline-size: calc(100% - 2rem);
+    max-block-size: calc(100% - 2rem);
+    overflow: auto;
     padding: 0;
-    border: 1px solid #dbe2eb;
+    border: 1px solid #ccdce0;
     border-radius: 1rem;
     color: inherit;
     background: white;
     font: inherit;
-    box-shadow: 0 20px 70px #10204030;
+    box-shadow: 0 .25rem 0 #d3e0e2, 0 1rem 3rem #16354438;
 
     &::backdrop {
-      background: #14223880;
+      background: #16354480;
     }
   }
 
@@ -147,8 +169,7 @@
 
     > .avatar { inline-size: 4rem; block-size: 4rem; }
 
-    &:focus-visible { outline: 3px solid #245cb4; outline-offset: 4px; }
-    &:hover .picture-pencil { background: #17458b; }
+    &:hover .picture-pencil { background: #00557b; }
     &:disabled { cursor: wait; opacity: .6; }
   }
 
@@ -162,7 +183,7 @@
     block-size: 1.5rem;
     border: 2px solid white;
     border-radius: 50%;
-    background: #245cb4;
+    background: #006b9b;
     color: white;
     font-size: 1rem;
   }
@@ -171,7 +192,7 @@
     padding: .25rem;
     border: 0;
     background: transparent;
-    color: #586779;
+    color: #3f6054;
     font: inherit;
     font-size: .8rem;
     cursor: pointer;
@@ -190,7 +211,8 @@
 
     > button {
       inline-size: 100%;
-      min-block-size: 2.5rem;
+      min-block-size: var(--account-control-height);
+      padding-block: .5rem;
     }
   }
 
@@ -199,7 +221,7 @@
     align-items: center;
     gap: .75rem;
     margin-block: 1.25rem;
-    color: #586779;
+    color: #485c65;
 
     &:has(+ .auth-providers:empty) {
       display: none;
@@ -208,7 +230,7 @@
     &::before, &::after {
       content: "";
       flex: 1;
-      border-block-start: 1px solid #dbe2eb;
+      border-block-start: 1px solid #ccdce0;
     }
   }
 
@@ -230,26 +252,35 @@
 
   .dialog-header {
     display: flex;
-    align-items: start;
-    gap: 1rem;
+    align-items: center;
+    gap: .75rem;
     margin-block-end: 1.5rem;
+
+    > .icon {
+      inline-size: 2.75rem;
+      block-size: 2.75rem;
+    }
   }
 
   h1 {
     flex: 1;
     margin: 0;
-    font-size: 1.4rem;
+    font-size: 1.625rem;
+    line-height: 1.2;
+    letter-spacing: -.035em;
     overflow-wrap: anywhere;
   }
 
   .close-button {
     padding: .4rem;
-    margin: -.25rem;
-    color: #526174;
+    flex: none;
+    min-inline-size: 2.5rem;
+    min-block-size: 2.5rem;
+    color: #485c65;
     background: transparent;
 
     &:hover {
-      background: #eef3fc;
+      background: #edf5f8;
     }
   }
 
@@ -271,20 +302,23 @@
     inline-size: 100%;
     margin-block-start: .35rem;
     padding: .7rem;
-    border: 1px solid #93a2b6;
-    border-radius: .4rem;
+    border: 1px solid #819aa4;
+    border-radius: .5rem;
     color: inherit;
     background: white;
     font: inherit;
+    font-weight: 400;
   }
 
   .primary {
     inline-size: 100%;
-    background: #2058b5;
+    min-block-size: var(--account-control-height);
+    padding-block: .5rem;
+    background: #006b9b;
     color: white;
 
     &:hover {
-      background: #16458f;
+      background: #00557b;
     }
   }
 
@@ -292,11 +326,11 @@
     inline-size: 100%;
     margin-block-start: .6rem;
     background: transparent;
-    color: #2058b5;
+    color: #00648f;
     font-size: .9rem;
 
     &:hover {
-      background: #eef3fc;
+      background: #edf7fc;
     }
   }
 
@@ -306,6 +340,10 @@
     align-items: start;
     gap: 1rem;
     margin-block-end: 1.25rem;
+    padding: 1rem;
+    border-inline-start: .25rem solid #26984b;
+    border-radius: .5rem;
+    background: #f0f7f2;
 
     > .avatar {
       justify-self: center;
@@ -318,7 +356,8 @@
       block-size: 4rem;
       padding: .55rem;
       border-radius: 50%;
-      background: #eef3fc;
+      color: #28523f;
+      background: #dcece2;
     }
   }
 
@@ -329,15 +368,8 @@
     dd:last-child { margin-block-end: 0; }
   }
 
-  @container dialog (width < 22rem) {
-    .profile-overview {
-      grid-template-columns: 4rem minmax(0, 1fr);
-      gap: .75rem;
-    }
-  }
-
   dt {
-    color: #586779;
+    color: #3f6054;
     font-size: .85rem;
   }
 
@@ -352,13 +384,13 @@
 
   .account-actions {
     margin-block-start: 1.25rem;
-    border-block-start: 1px solid #e5eaf1;
+    border-block-start: 1px solid #ccdce0;
     padding-block-start: .65rem;
     text-align: center;
   }
 
   .delete-link {
-    color: #687384;
+    color: #485c65;
     font-size: .85rem;
     font-weight: 400;
     background: transparent;
@@ -371,6 +403,10 @@
 
   .description {
     margin: 0 0 1.5rem;
+    padding: .75rem 1rem;
+    border-inline-start: .25rem solid #ffc857;
+    border-radius: .25rem;
+    background: #fff8e8;
   }
 
   .actions {
@@ -384,9 +420,11 @@
   }
 
   .secondary {
-    border-color: #c5cfdd;
+    border-color: #a7bdc5;
     background: white;
-    color: #344258;
+    color: inherit;
+
+    &:hover { background: #f3faff; }
   }
 
   .danger {
@@ -400,16 +438,28 @@
 
   .message {
     margin: 0 0 1rem;
-    color: #9d2525;
+    padding-inline-start: .625rem;
+    border-inline-start: 3px solid #ffc857;
+    color: #485c65;
+
+    &[role="alert"] { color: #982f27; }
 
     &:empty {
       display: none;
     }
   }
 
-  @container dialog (max-width: 360px) {
+  @container dialog (width <= 22.5rem) {
     .card {
       padding: 1.1rem;
+    }
+
+    .dialog-header { gap: .5rem; }
+    .dialog-header > .icon { inline-size: 2rem; block-size: 2rem; }
+    .profile-overview {
+      grid-template-columns: 4rem minmax(0, 1fr);
+      gap: .75rem;
+      padding: .75rem;
     }
   }
 

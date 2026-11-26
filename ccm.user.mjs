@@ -4,7 +4,7 @@
  * @author André Kless <andre.kless@web.de>
  * @copyright 2026 André Kless
  * @license MIT
- * @version 1.1.0
+ * @version 1.2.0
  */
 export const component = {
   name: "user",
@@ -23,7 +23,7 @@ export const component = {
     // registration: true,
     /** Independent authentication components mounted in the login dialog. */
     providers: [
-      // ["ccm.instance", "././libs/google_login/ccm.google_login-1.1.0.min.mjs"],
+      // ["ccm.instance", "././libs/google_login/ccm.google_login-1.2.0.min.mjs"],
     ],
     /** Allow private profile pictures for local CCM accounts using the server upload service. */
     profilePicture: true,
@@ -106,6 +106,7 @@ export const component = {
 
     /** Normalizes the server URL and fills omitted content entries before ready(). */
     this.init = async () => {
+      this.url = new URL(this.url).href;
       // CCM resolves dependencies before init. A partial object replaces its map, so restore missing defaults.
       const [labels, icons] = await this.ccm.load(component.config.labels[1], component.config.icons[1]);
       this.labels = { ...labels, ...this.labels };
