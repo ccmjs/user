@@ -1,8 +1,2 @@
-const server = "https://kless.inf.h-brs.de/api/";
-
-/** Demo with CCM registration and Google sign-in on the same backend. */
-export const demo = {
-  url: server,
-  registration: true,
-  providers: [["ccm.instance", "././libs/google_login/ccm.google_login-1.1.0.min.mjs", { server }]],
-};
+const s="https://kless.inf.h-brs.de/api/";export const demo={url:s,registration:!0,providers:[["ccm.instance","https://cdn.jsdelivr.net/gh/ccmjs/user@v1.1.0/libs/google_login/ccm.google_login-1.1.0.min.mjs",{server:s}]]};
+//# sourceMappingURL=https://cdn.jsdelivr.net/gh/ccmjs/user@v1.1.0/resources/configs.mjs.map
