@@ -272,8 +272,10 @@ so the provider reuses the framework already loaded by the demo.
 providers: [["ccm.instance", "././libs/google_login/ccm.google_login-1.1.0.min.mjs"]],
 ```
 
-The demo sets User's `url` and Google Login's `server` to `https://kless.inf.h-brs.de/api/`. The Google Login module, source map
-and license are included under `libs/google_login/`. Its views, styles, labels, icons and libraries
+The demo sets User's `url` and Google Login's `server` to `https://kless.inf.h-brs.de/api/`.
+Google Login is bundled under `libs/google_login/`. When updating any dependency in `libs/`,
+include its versioned readable and minified files, source map and license together.
+Google Login's views, styles, labels, icons and libraries
 are resolved against the pinned v1.1.0 CDN release. The Google popup is hosted at
 `https://ccmjs.github.io/google_login/auth.html`.
 
