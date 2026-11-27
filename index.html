@@ -6,9 +6,8 @@
   <link rel="icon" type="image/svg+xml" sizes="any" href="./resources/favicon.svg">
   <title>User Login Demo · ccmjs</title>
   <script src="./libs/framework/ccm-29.1.0.min.js"></script>
-  <script type="module">
-    await ccm.start("./ccm.user.mjs", ["ccm.load", "./resources/configs.mjs#demo"], document.body);
-  </script>
 </head>
-<body></body>
+<body>
+<ccm-app component="./ccm.user.mjs" config='["ccm.load", "./resources/configs.mjs#demo"]'></ccm-app>
+</body>
 </html>
